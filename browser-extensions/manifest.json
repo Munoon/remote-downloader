@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Download Redirector",
+  "version": "1.0",
+  "permissions": [
+    "downloads",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Download Manager"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}
