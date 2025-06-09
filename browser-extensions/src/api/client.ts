@@ -107,8 +107,9 @@ class WebSocketClient {
     return this.serverHelloPromise.promise;
   }
 
-  downloadFile(url: string, fileName: string): Promise<Message> {
-    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({ url, fileName }));
+  downloadFile(url: string, fileName: string): Promise<HistoryFile> {
+    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({ url, fileName }))
+      .then(msg => msg.body);
   }
 
   getFilesHistory(page: number, size: number): Promise<Page<HistoryFile>> {

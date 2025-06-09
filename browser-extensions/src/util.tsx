@@ -10,7 +10,11 @@ export function buildTimeRemainingMessage(secondsRemaining: number): string {
   }
 }
 
-export function buildSpeedMessage(bytesPerSecond: number): string {
+export function buildSpeedMessage(bytesPerSecond: number): string | null {
+  if (bytesPerSecond === 0) {
+    return null;
+  }
+
   if (bytesPerSecond < 1024) {
     return `${Math.floor(bytesPerSecond)} B/s`;
   } else if (bytesPerSecond < 1024 ** 2) {
@@ -24,4 +28,16 @@ export function buildSpeedMessage(bytesPerSecond: number): string {
   } else {
     return `${Math.floor(bytesPerSecond / 1024 ** 5)} PB/s`;
   }
+}
+
+export function resolveFileNameFromURL(url: string) {
+  const startIndex = url.lastIndexOf('/');
+  if (startIndex === -1) {
+    return url;
+  }
+
+  const endIndex = url.lastIndexOf('?');
+  return endIndex === -1 || startIndex > endIndex
+    ? url
+    : url.substring(startIndex + 1, endIndex);
 }

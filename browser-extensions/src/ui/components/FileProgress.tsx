@@ -65,7 +65,7 @@ const FileProgressRoot = React.forwardRef<HTMLElement, FileProgressRootProps>(
               flex: variant === "downloaded",
             })}
           >
-            {variant === 'downloading' && <Badge variant="neutral">{downloadSpeed}</Badge>}
+            {variant === 'downloading' && downloadSpeed && <Badge variant="neutral">{downloadSpeed}</Badge>}
             {variant === 'downloading' && <IconButton size="small" icon={<FeatherPause />} onClick={onPauseHook} disabled={buttonsDisabled} />}
 
             {variant === 'downloaded' && <Badge variant="success">Completed</Badge>}

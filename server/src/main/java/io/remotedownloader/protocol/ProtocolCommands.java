@@ -9,4 +9,5 @@ public class ProtocolCommands {
     public static final short DELETE_FILE = 6;
     public static final short STOP_DOWNLOADING = 7;
     public static final short RESUME_DOWNLOADING = 8;
+    public static final short LIST_FOLDERS = 9;
 }

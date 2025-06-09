@@ -1,11 +1,11 @@
 "use client";
 
-import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
 import client from "./api/client";
 import { HistoryFilesContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage } from "./util";
+import PendingDownloads from "./PendingDownloads";
 
 function Downloads() {
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
@@ -18,22 +18,19 @@ function Downloads() {
 
   const context = {
     files: files || [],
-    reload: () => setReloadTrigger(reloadTrigger + 1)
+    reload: () => setReloadTrigger(reloadTrigger + 1),
+    prependFile: (file: HistoryFile) => setFiles([file, ...(files || [])])
   };
 
   return (
     <HistoryFilesContext.Provider value={context}>
-      <DefaultPageLayout>
-        <div className="flex w-96 flex-col items-start gap-3 bg-default-background px-3 py-3">
-          {files && files.map(file => mapFile(file))}
-        </div>
-      </DefaultPageLayout>
+      <PendingDownloads />
+      {files && files.map(file => mapFile(file))}
     </HistoryFilesContext.Provider>
   );
 }
 
 function mapFile(file: HistoryFile) {
-  console.log(file);
   if (file.status === 'DOWNLOADED') {
     return <DownloadedFile file={file} />
   } else if (file.status === 'DOWNLOADING') {
@@ -61,13 +58,17 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
       .then(() => filesContext.reload());
   };
 
-  const secondsRemaining = (file.totalBytes - file.downloadedBytes) / file.speedBytesPerSecond;
+  let subtitle;
+  if (file.totalBytes > 0 && file.speedBytesPerSecond !== 0) {
+    const secondsRemaining = (file.totalBytes - file.downloadedBytes) / file.speedBytesPerSecond;
+    subtitle = buildTimeRemainingMessage(secondsRemaining);
+  }
 
   return (
     <FileProgress
       fileName={file.name}
       downloadSpeed={buildSpeedMessage(file.speedBytesPerSecond)}
-      subtitle={buildTimeRemainingMessage(secondsRemaining)}
+      subtitle={subtitle}
       progress={(file.downloadedBytes / file.totalBytes) * 100}
       variant="downloading"
       onDeleteHook={onDelete}

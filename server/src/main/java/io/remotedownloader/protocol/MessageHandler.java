@@ -11,6 +11,8 @@ import io.remotedownloader.protocol.dto.FileDTO;
 import io.remotedownloader.protocol.dto.FileIdRequestDTO;
 import io.remotedownloader.protocol.dto.FileStatus;
 import io.remotedownloader.protocol.dto.InfoMessage;
+import io.remotedownloader.protocol.dto.ListFoldersRequestDTO;
+import io.remotedownloader.protocol.dto.ListFoldersResponseDTO;
 import io.remotedownloader.protocol.dto.Page;
 import io.remotedownloader.util.JsonUtil;
 import org.apache.logging.log4j.LogManager;
@@ -43,6 +45,7 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
                 case ProtocolCommands.STOP_DOWNLOADING -> stopDownloading(msg);
                 case ProtocolCommands.DELETE_FILE -> deleteFile(msg);
                 case ProtocolCommands.RESUME_DOWNLOADING -> resumeDownloading(msg);
+                case ProtocolCommands.LIST_FOLDERS -> listFolders(msg);
                 default -> StringMessage.error(msg, Error.ErrorTypes.UNKNOWN_COMMAND, "Unknown command.");
             };
 
@@ -114,6 +117,12 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
         this.files = filesCopy;
 
         return StringMessage.ok(msg);
+    }
+
+    private StringMessage listFolders(StringMessage msg) {
+        ListFoldersRequestDTO req = msg.parseJson(ListFoldersRequestDTO.class);
+        ListFoldersResponseDTO response = downloadManagerDao.listFolders(req.path());
+        return StringMessage.json(msg, response);
     }
 
     @Override
