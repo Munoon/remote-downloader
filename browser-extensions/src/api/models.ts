@@ -15,3 +15,13 @@ type HistoryFile = {
   downloadedBytes: number
   speedBytesPerSecond: number
 }
+
+interface ListFile {
+  folder: boolean
+  fileName: string
+}
+
+interface ListFoldersResponse {
+  canDownload: boolean
+  files: ListFile[]
+}

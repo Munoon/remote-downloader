@@ -40,8 +40,8 @@ public class DownloadManagerDao {
         this.asyncHttpClient = asyncHttpClient;
     }
 
-    public void download(ChannelHandlerContext ctx, StringMessage req, String url, String fileName) {
-        Path filePath = resolveFilePath(fileName);
+    public void download(ChannelHandlerContext ctx, StringMessage req, String url, String fileName, String path) {
+        Path filePath = resolveFilePath(path, fileName);
         SeekableByteChannel fileChannel = createFileChannel(filePath);
 
         asyncHttpClient.prepareGet(url)
@@ -145,8 +145,11 @@ public class DownloadManagerDao {
         }
     }
 
-    private Path resolveFilePath(String fileName) {
+    private Path resolveFilePath(String path, String fileName) {
         Path downloadFolder = resolveDownloadFolder();
+        if (path != null) {
+            downloadFolder = downloadFolder.resolve(path);
+        }
         return downloadFolder.resolve(fileName);
     }
 

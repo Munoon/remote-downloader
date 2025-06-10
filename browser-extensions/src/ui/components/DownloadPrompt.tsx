@@ -11,7 +11,6 @@
 import React from "react";
 import * as SubframeUtils from "../utils";
 import { TextField } from "./TextField";
-import { FeatherFolder } from "@subframe/core";
 import { Button } from "./Button";
 import { FeatherDownload } from "@subframe/core";
 import { FeatherCloud } from "@subframe/core";
@@ -21,10 +20,12 @@ import { IconButton } from "./IconButton";
 interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
   fileName: string;
+  filePath: string;
   onFileNameChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadLocaly: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onDownloadRemotely: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  filePathElement: React.ReactNode;
   disabled: boolean;
 }
 
@@ -32,7 +33,18 @@ const DownloadPromptRoot = React.forwardRef<
   HTMLElement,
   DownloadPromptRootProps
 >(function DownloadPromptRoot(
-  { className, fileName, onFileNameChange, onDownloadLocaly, onDownloadRemotely, onDelete, disabled, ...otherProps }: DownloadPromptRootProps,
+  {
+    className,
+    fileName,
+    filePath,
+    onFileNameChange,
+    onDownloadLocaly,
+    onDownloadRemotely,
+    onDelete,
+    filePathElement,
+    disabled,
+    ...otherProps
+  }: DownloadPromptRootProps,
   ref
 ) {
   return (
@@ -52,16 +64,22 @@ const DownloadPromptRoot = React.forwardRef<
         >
           <TextField.Input value={fileName} onChange={onFileNameChange} disabled={disabled} />
         </TextField>
-        <div className="flex w-full items-center gap-2">
-          <TextField
-            className="grow"
-            label="Save location"
-            helpText=""
-            icon={<FeatherFolder />}
-          >
-            <TextField.Input placeholder="/Downloads/Project Files" disabled={disabled} />
-          </TextField>
-        </div>
+
+        <label
+          className={SubframeUtils.twClassNames(
+            "group/be48ca43 flex flex-col items-start gap-1 w-full",
+            className
+          )}
+        >
+          <span className="text-caption-bold font-caption-bold text-default-font">
+            Location
+          </span>
+          <div className="w-full bg-default-background rounded-md">
+            {filePathElement}
+          </div>
+        </label>
+
+        
       </div>
       <div className="flex w-full items-center justify-between">
         <IconButton

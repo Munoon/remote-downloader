@@ -1,21 +1,29 @@
 "use client";
+// @subframe/sync-disable
 /*
  * Documentation:
  * Tree View — https://app.subframe.com/dd13c78ea6fd/library?component=Tree+View_4ed46422-ecc3-41e8-8787-e55ee10cdc75
  */
 
-import React from "react";
+import React, { MouseEventHandler } from "react";
 import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 import { FeatherFolder } from "@subframe/core";
 import { Accordion } from "./Accordion";
 import { FeatherFile } from "@subframe/core";
+import { Loader } from "@/ui/components/Loader";
+import { FeatherFolderPlus } from "@subframe/core";
 
 interface FolderProps extends React.ComponentProps<typeof Accordion> {
   children?: React.ReactNode;
+  selected: boolean;
+  open: boolean;
   label?: React.ReactNode;
   icon?: React.ReactNode;
+  loading: boolean;
   className?: string;
+  onFolderClick: MouseEventHandler<HTMLDivElement>
+  onNewFolderClick: MouseEventHandler<HTMLDivElement>
 }
 
 const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
@@ -23,7 +31,12 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
     children,
     label,
     icon = <FeatherFolder />,
+    selected = false,
+    open = false,
+    onFolderClick,
+    onNewFolderClick,
     className,
+    loading,
     ...otherProps
   }: FolderProps,
   ref
@@ -35,21 +48,43 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
         className
       )}
       trigger={
-        <div className="flex w-full items-center gap-2 rounded-md px-3 py-2 group-hover/c841484c:bg-neutral-50">
+        <div
+          className={SubframeUtils.twClassNames(
+            "flex w-full items-center gap-2 rounded-md px-3 py-2",
+            { "bg-brand-100": selected }
+          )}
+          onClick={onFolderClick}
+        >
           {icon ? (
-            <SubframeCore.IconWrapper className="text-body font-body text-default-font">
+            <SubframeCore.IconWrapper className={SubframeUtils.twClassNames(
+                "text-body font-body text-default-font",
+                { "text-brand-700": selected }
+            )}>
               {icon}
             </SubframeCore.IconWrapper>
           ) : null}
           {label ? (
-            <span className="line-clamp-1 grow shrink-0 basis-0 text-body font-body text-default-font">
+            <span className={SubframeUtils.twClassNames(
+              "line-clamp-1 shrink-0 text-body font-body text-default-font",
+              { "text-brand-700": selected }
+            )}>
               {label}
             </span>
           ) : null}
+          <div className="basis-0 grow flex-[0_0_auto] inline-flex items-center">
+            {loading && <Loader size="small" />}
+          </div>
+          <FeatherFolderPlus
+            className={SubframeUtils.twClassNames(
+              "text-body font-body text-default-font",
+              { "text-brand-700": selected }
+            )}
+            onClick={onNewFolderClick}
+            />
           <Accordion.Chevron />
         </div>
       }
-      defaultOpen={true}
+      open={open}
       ref={ref as any}
       {...otherProps}
     >

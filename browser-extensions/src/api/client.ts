@@ -7,7 +7,8 @@ const COMMANDS = {
   GET_FILES_HISTORY: 5,
   DELETE_FILE: 6,
   STOP_DOWNLOADING: 7,
-  RESUME_DOWNLOADING: 8
+  RESUME_DOWNLOADING: 8,
+  LIST_FOLDERS: 9
 };
 
 class WebSocketClient {
@@ -107,8 +108,8 @@ class WebSocketClient {
     return this.serverHelloPromise.promise;
   }
 
-  downloadFile(url: string, fileName: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({ url, fileName }))
+  downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {
+    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({ url, fileName, path }))
       .then(msg => msg.body);
   }
 
@@ -127,6 +128,11 @@ class WebSocketClient {
 
   deleteFile(fileId: string) {
     return this._send(COMMANDS.DELETE_FILE, JSON.stringify({ fileId }))
+  }
+
+  listFolders(path: string | null): Promise<ListFoldersResponse> {
+    return this._send(COMMANDS.LIST_FOLDERS, JSON.stringify({ path }))
+      .then(msg => msg.body);
   }
 }
 

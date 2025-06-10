@@ -62,7 +62,7 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
 
     private StringMessage downloadUrl(ChannelHandlerContext ctx, StringMessage msg) {
         DownloadUrlRequestDTO req = msg.parseJson(DownloadUrlRequestDTO.class);
-        downloadManagerDao.download(ctx, msg, req.url(), req.fileName());
+        downloadManagerDao.download(ctx, msg, req.url(), req.fileName(), req.path());
         return null;
     }
 
