@@ -3,9 +3,10 @@ import { PendingDownload } from "./browser_client";
 
 export const HistoryFilesContext = createContext<{
   files: HistoryFile[],
-  reload: () => void,
-  prependFile: (file: HistoryFile) => void
-}>({ files: [], reload: () => {}, prependFile: () => {} });
+  prependFile: (file: HistoryFile) => void,
+  updateFile: (file: HistoryFile) => void,
+  deleteFile: (id: string) => void
+}>({ files: [], prependFile: () => {}, updateFile: () => {}, deleteFile: () => {} });
 
 export const PendingDownloadContext = createContext<{
   pendingDownloads: PendingDownload[],

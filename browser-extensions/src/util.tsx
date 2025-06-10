@@ -54,3 +54,25 @@ export function arrayEquals(arr1: string[], arr2: string[]) {
   }
   return true;
 }
+
+export function copyAndReplace<T>(arr: T[], matcher: (el: T) => boolean, newElement: T) {
+  const index = arr.findIndex(matcher);
+  if (index === -1) {
+    return arr;
+  }
+
+  const copy = [...arr];
+  copy[index] = newElement;
+  return copy;
+}
+
+export function deleteElement<T>(arr: T[], matcher: (el: T) => boolean) {
+  const index = arr.findIndex(matcher);
+  if (index === -1) {
+    return arr;
+  }
+  
+  const copy = [...arr];
+  copy.splice(index, 1);
+  return copy;
+}

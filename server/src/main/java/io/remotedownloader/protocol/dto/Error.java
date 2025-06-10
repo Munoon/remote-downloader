@@ -5,6 +5,6 @@ public record Error(
         String message
 ) {
     public enum ErrorTypes {
-        UNKNOWN, UNKNOWN_COMMAND, FAILED_TO_DOWNLOAD
+        UNKNOWN, UNKNOWN_COMMAND, FAILED_TO_DOWNLOAD, NOT_FOUND
     }
 }

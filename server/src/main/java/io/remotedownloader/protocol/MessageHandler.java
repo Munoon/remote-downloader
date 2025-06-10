@@ -78,12 +78,12 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
             FileDTO file = filesCopy[i];
             if (file.id().equals(fileId)) {
                 filesCopy[i] = new FileDTO(file.id(), file.name(), FileStatus.PAUSED, file.totalBytes(), file.downloadedBytes(), file.speedBytesPerSecond());
-                break;
+                this.files = filesCopy;
+                return StringMessage.json(msg, filesCopy[i]);
             }
         }
-        this.files = filesCopy;
 
-        return StringMessage.ok(msg);
+        return StringMessage.error(msg, Error.ErrorTypes.NOT_FOUND, "File is not found.");
     }
 
     private StringMessage deleteFile(StringMessage msg) {
@@ -111,12 +111,12 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
             FileDTO file = filesCopy[i];
             if (file.id().equals(fileId)) {
                 filesCopy[i] = new FileDTO(file.id(), file.name(), FileStatus.DOWNLOADING, file.totalBytes(), file.downloadedBytes(), file.speedBytesPerSecond());
-                break;
+                this.files = filesCopy;
+                return StringMessage.json(msg, filesCopy[i]);
             }
         }
-        this.files = filesCopy;
 
-        return StringMessage.ok(msg);
+        return StringMessage.error(msg, Error.ErrorTypes.NOT_FOUND, "Files is not found.");
     }
 
     private StringMessage listFolders(StringMessage msg) {

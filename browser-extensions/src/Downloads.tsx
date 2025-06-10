@@ -4,22 +4,32 @@ import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
 import client from "./api/client";
 import { HistoryFilesContext } from "./context";
-import { buildTimeRemainingMessage, buildSpeedMessage } from "./util";
+import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloads from "./PendingDownloads";
 
 function Downloads() {
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
-  const [reloadTrigger, setReloadTrigger] = useState(0);
-  
+
   useEffect(() => {
     client.getFilesHistory(0, 20)
       .then(files => setFiles(files.content));
-  }, [reloadTrigger]);
+  }, []);
 
   const context = {
     files: files || [],
-    reload: () => setReloadTrigger(reloadTrigger + 1),
-    prependFile: (file: HistoryFile) => setFiles([file, ...(files || [])])
+    prependFile: (file: HistoryFile) => setFiles([file, ...(files || [])]),
+    updateFile: (file: HistoryFile) => {
+      if (files) {
+        const updated = copyAndReplace(files, f => f.id === file.id, file);
+        setFiles(updated);
+      }
+    },
+    deleteFile: (id: string) => {
+      if (files) {
+        const updated = deleteElement(files, f => f.id === id);
+        setFiles(updated);
+      }
+    }
   };
 
   return (
@@ -48,14 +58,14 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
     e.preventDefault();
     setLoading(true);
     client.deleteFile(file.id)
-      .then(() => filesContext.reload());
+      .then(() => filesContext.deleteFile(file.id));
   };
 
   const onPause = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
     client.stopDownloading(file.id)
-      .then(() => filesContext.reload());
+      .then(file => filesContext.updateFile(file));
   };
 
   let subtitle;
@@ -87,14 +97,14 @@ function PausedFile({ file }: { file: HistoryFile }) {
     e.preventDefault();
     setLoading(true);
     client.deleteFile(file.id)
-      .then(() => filesContext.reload());
+      .then(() => filesContext.deleteFile(file.id));
   };
 
   const onContinue = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
     client.resumeDownloading(file.id)
-      .then(() => filesContext.reload());
+      .then(file => filesContext.updateFile(file));
   };
 
   return (
@@ -118,7 +128,7 @@ function DownloadedFile({ file }: { file: HistoryFile }) {
     e.preventDefault();
     setLoading(true);
     client.deleteFile(file.id)
-      .then(() => filesContext.reload());
+      .then(() => filesContext.deleteFile(file.id));
   };
 
   return (

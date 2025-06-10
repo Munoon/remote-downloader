@@ -30,7 +30,7 @@ public record StringMessage(
     }
 
     public static StringMessage json(int id, short responseCommand, Object response) {
-        String json = JsonUtil.writeValueAsString(response);
+        String json = response != null ? JsonUtil.writeValueAsString(response) : null;
         return new StringMessage(id, responseCommand, json);
     }
 }

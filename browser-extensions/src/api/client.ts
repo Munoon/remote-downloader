@@ -1,4 +1,4 @@
-type Message = { id: number, command: number, body: any }
+type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
   SERVER_HELLO: 1,
@@ -74,7 +74,7 @@ class WebSocketClient {
   _handleServerResponse(message: Message) {
     const handler = this.messageHandlers[message.id];
     if (handler) {
-      const body = JSON.parse(message.body);
+      const body = message.body ? JSON.parse(message.body) : null;
       if (message.command === COMMANDS.ERROR) {
         handler.reject({ ...message, body })
       } else {
@@ -121,12 +121,14 @@ class WebSocketClient {
       .then(msg => msg.body);
   }
 
-  stopDownloading(fileId: string) {
+  stopDownloading(fileId: string): Promise<HistoryFile> {
     return this._send(COMMANDS.STOP_DOWNLOADING, JSON.stringify({ fileId }))
+      .then(msg => msg.body);
   }
 
-  resumeDownloading(fileId: string) {
+  resumeDownloading(fileId: string): Promise<HistoryFile> {
     return this._send(COMMANDS.RESUME_DOWNLOADING, JSON.stringify({ fileId }))
+      .then(msg => msg.body);
   }
 
   deleteFile(fileId: string) {

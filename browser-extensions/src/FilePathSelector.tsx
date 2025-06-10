@@ -44,10 +44,11 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
           const children = mapFilesToStrucutre(resp.files);
           setChildren(children);
           setChildrenLoading(false);
+          setOpen(true);
         });
+    } else {
+      setOpen(!open);
     }
-
-    setOpen(!open);
   }
 
   const onNewFolderClick: MouseEventHandler<HTMLDivElement> = (e) => {
@@ -75,7 +76,7 @@ function renderStructure(structure: FileStructure, prefixPath: string[]) {
   if (structure.type === 'file') {
     return <TreeView.Item key={structure.name} label={structure.name} />
   } else if (structure.type === 'folder') {
-    return <StructureFolder structure={structure} prefixPath={prefixPath} />
+    return <StructureFolder key={structure.name} structure={structure} prefixPath={prefixPath} />
   }
 }
 
