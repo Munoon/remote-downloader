@@ -12,7 +12,6 @@ import { FeatherFolder } from "@subframe/core";
 import { Accordion } from "./Accordion";
 import { FeatherFile } from "@subframe/core";
 import { Loader } from "@/ui/components/Loader";
-import { FeatherFolderPlus } from "@subframe/core";
 
 interface FolderProps extends React.ComponentProps<typeof Accordion> {
   children?: React.ReactNode;
@@ -23,7 +22,7 @@ interface FolderProps extends React.ComponentProps<typeof Accordion> {
   loading: boolean;
   className?: string;
   onFolderClick: MouseEventHandler<HTMLDivElement>
-  onNewFolderClick: MouseEventHandler<HTMLDivElement>
+  rightIcon: React.ReactNode
 }
 
 const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
@@ -34,7 +33,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
     selected = false,
     open = false,
     onFolderClick,
-    onNewFolderClick,
+    rightIcon,
     className,
     loading,
     ...otherProps
@@ -63,24 +62,11 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
               {icon}
             </SubframeCore.IconWrapper>
           ) : null}
-          {label ? (
-            <span className={SubframeUtils.twClassNames(
-              "line-clamp-1 shrink-0 text-body font-body text-default-font",
-              { "text-brand-700": selected }
-            )}>
-              {label}
-            </span>
-          ) : null}
+          {label}
           <div className="basis-0 grow flex-[0_0_auto] inline-flex items-center">
             {loading && <Loader size="small" />}
           </div>
-          <FeatherFolderPlus
-            className={SubframeUtils.twClassNames(
-              "text-body font-body text-default-font",
-              { "text-brand-700": selected }
-            )}
-            onClick={onNewFolderClick}
-            />
+          {rightIcon}
           <Accordion.Chevron />
         </div>
       }

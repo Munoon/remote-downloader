@@ -1,11 +1,13 @@
-import { useState, useEffect, createContext, MouseEventHandler, useContext } from 'react';
-import { arrayEquals, resolveFileNameFromURL } from "./util";
+import { useState, useEffect, MouseEventHandler, useContext, FormEventHandler, ChangeEventHandler } from 'react';
+import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
+import * as SubframeUtils from "./ui/utils";
+import { arrayEquals, copyAndReplace } from "./util";
 import { TreeView } from "./ui";
 import client from './api/client';
 import { DownloadFilePathContext } from './context';
 
-type FolderStructure = { type: 'folder', name: string, children?: FileStructure[] }
-type FileStructure = FolderStructure | { type: 'file', name: string };
+type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
+type FileStructure = FolderStructure | { type: 'file', id: string, name: string };
 
 export default function FilePathSelector() {
   const [structure, setStructure] = useState<FileStructure[] | null>(null);
@@ -18,7 +20,7 @@ export default function FilePathSelector() {
     <TreeView>
       <StructureFolder
         key={structure ? 1 : 0} // hack: without this key react wouldn't re-render component after fetching the structure
-        structure={{ type: 'folder', name: 'Root', children: structure || [] }}
+        structure={{ type: 'folder', name: 'Root', id: 'root', children: structure || [], editing: false, virtual: true }}
         prefixPath={[]}
         />
     </TreeView>
@@ -36,7 +38,7 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
     e.preventDefault();
     setFilePath(folderPath);
     
-    if (!open && children === undefined && !childrenLoading) {
+    if (!open && !structure.virtual && children === undefined && !childrenLoading) {
       setChildrenLoading(true);
 
       client.listFolders(folderPath.slice(1).join('/'))
@@ -53,30 +55,125 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
 
   const onNewFolderClick: MouseEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
-    setChildren([{ 'type': 'folder', 'name': 'new folder' }, ...(children || [])]);
+    e.stopPropagation();
+
+    const newFile: FolderStructure = {
+      'type': 'folder',
+      'name': '',
+      editing: true,
+      virtual: true,
+      
+      // prepend the id with '/', so that it won't match with any real file/folder
+      id: '/' + Math.random().toString(16)
+    }
+    setChildren([newFile, ...(children || [])]);
     setOpen(true);
+  }
+
+  const selected = arrayEquals(folderPath, selectedPath);
+  const label = (
+    <span
+      className={SubframeUtils.twClassNames(
+        "line-clamp-1 shrink-0 text-body font-body text-default-font",
+        { "text-brand-700": selected }
+      )}>
+      {structure.name}
+    </span>
+  );
+
+  const rightIcon = (
+    <FeatherFolderPlus
+      className={SubframeUtils.twClassNames(
+        "text-body font-body text-default-font",
+        { "text-brand-700": selected }
+      )}
+      onClick={onNewFolderClick}
+      />
+  );
+
+  const replaceChildren = (id: string, child: FileStructure) => {
+    if (children) {
+      const newChildren = copyAndReplace(children, c => c.id === id, child);
+      setChildren(newChildren);
+    }
   }
 
   return (
     <TreeView.Folder
-      key={structure.name}
-      label={structure.name}
-      selected={arrayEquals(folderPath, selectedPath)}
+      label={label}
+      selected={selected}
       open={open}
       onFolderClick={onClick}
       loading={childrenLoading}
-      onNewFolderClick={onNewFolderClick}
+      rightIcon={rightIcon}
     >
-      {children && children.map(file => renderStructure(file, folderPath))}
+      {children && children.map(file => renderStructure(file, folderPath, replaceChildren))}
     </TreeView.Folder>
   );
 }
 
-function renderStructure(structure: FileStructure, prefixPath: string[]) {
+function EditingStructureFolder({ id, prefixPath, setChildren }: {
+  id: string,
+  prefixPath: string[],
+  setChildren: (id: string, child: FileStructure) => void
+}) {
+  const [folderName, setFolderName] = useState('');
+  const { setFilePath } = useContext(DownloadFilePathContext);
+
+  const onSubmit = (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    setChildren(id, { type: 'folder', id, name: folderName, editing: false, virtual: true });
+    setFilePath([...prefixPath, folderName]);
+  };
+
+  const onFileNameChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+    e.preventDefault();
+    setFolderName(e.target.value);
+  };
+
+  const label = (
+    <form className='w-full h-full border-none bg-transparent outline-none' onSubmit={onSubmit}>
+      <input
+        autoFocus
+        name='folderName'
+        value={folderName}
+        onChange={onFileNameChange}
+        className={SubframeUtils.twClassNames(
+          "group/b0d608f7 h-full w-full border-none bg-transparent text-body font-body text-default-font outline-none placeholder:text-neutral-400"
+        )}
+        placeholder='Folder name'
+        />
+    </form>
+  );
+
+  const rightIcon = (
+    <FeatherCheck
+      className={SubframeUtils.twClassNames("text-body font-body text-default-font")}
+      onClick={onSubmit}
+      />
+  );
+
+  return (
+    <TreeView.Folder
+      label={label}
+      selected={false}
+      open={false}
+      onFolderClick={e => {}}
+      loading={false}
+      rightIcon={rightIcon}
+      />
+  );
+}
+
+function renderStructure(structure: FileStructure, prefixPath: string[], setChildren: (id: string, child: FileStructure) => void) {
   if (structure.type === 'file') {
-    return <TreeView.Item key={structure.name} label={structure.name} />
+    return <TreeView.Item key={structure.id} label={structure.name} />
   } else if (structure.type === 'folder') {
-    return <StructureFolder key={structure.name} structure={structure} prefixPath={prefixPath} />
+    if (structure.editing) {
+      return <EditingStructureFolder key={structure.id} id={structure.id} setChildren={setChildren} prefixPath={prefixPath} />
+    } else {
+      return <StructureFolder key={structure.id} structure={structure} prefixPath={prefixPath} />
+    }
   }
 }
 
@@ -84,9 +181,9 @@ function mapFilesToStrucutre(files: ListFile[]): FileStructure[] {
   const result: FileStructure[] = [];
   for (let file of files) {
     if (file.folder) {
-      result.push({ type: 'folder', name: file.fileName })
+      result.push({ type: 'folder', name: file.fileName, id: file.fileName, editing: false, virtual: false })
     } else {
-      result.push({ type: 'file', name: file.fileName })
+      result.push({ type: 'file', name: file.fileName, id: file.fileName })
     }
   }
   return result;
