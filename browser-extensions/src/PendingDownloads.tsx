@@ -21,17 +21,12 @@ export default function PendingDownloads() {
 }
 
 function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownload }) {
-  const url = pendingDownload.finalUrl || pendingDownload.url;
-  const [fileName, setFileName] = useState(pendingDownload.filename || (url ? resolveFileNameFromURL(url) : ''));
+  const [fileName, setFileName] = useState(buildDefaultFileName(pendingDownload));
   const [filePath, setFilePath] = useState<string[]>(['Root']);
   const [loading, setLoading] = useState(false);
   const historyFilesContext = useContext(HistoryFilesContext);
   const { setPendingDownloads } = useContext(PendingDownloadContext);
-  
-  if (!url) {
-    return;
-  }
-  
+
   const onFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     setFileName(e.target.value);
@@ -49,6 +44,11 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
     e.preventDefault();
     setLoading(true);
     
+    const url = pendingDownload.finalUrl || pendingDownload.url;
+    if (!url) { // shouldn't happen
+      return;
+    }
+
     const path = filePath.length === 1 ? undefined : filePath.slice(1).join('/');
     client.downloadFile(url, fileName, path)
       .then(newFile => { 
@@ -84,4 +84,17 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
       disabled={loading}
       />
   )
+}
+
+function buildDefaultFileName(pendingDownload: PendingDownload) {
+  if (pendingDownload.filename && pendingDownload.filename.length > 0) {
+    return pendingDownload.filename;
+  }
+
+  const url = pendingDownload.finalUrl || pendingDownload.url;
+  if (url) {
+    return resolveFileNameFromURL(url);
+  }
+
+  return '';
 }

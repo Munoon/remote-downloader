@@ -38,7 +38,7 @@ export function resolveFileNameFromURL(url: string) {
 
   const endIndex = url.lastIndexOf('?');
   return endIndex === -1 || startIndex > endIndex
-    ? url
+    ? url.substring(startIndex + 1)
     : url.substring(startIndex + 1, endIndex);
 }
 
