@@ -42,6 +42,7 @@ class WebSocketClient {
   _onSocketMessage(event: MessageEvent) {
     if (event.data instanceof ArrayBuffer) {
       const parsed = parseBinaryMessage(event.data);
+      console.log('<===', parsed)
       if (parsed.id === 0) {
         this._handleServerMessage(parsed);
       } else {
@@ -97,6 +98,8 @@ class WebSocketClient {
 
     const binary = buildBinaryMessage({ id, command, body });
     this.socket.send(binary);
+
+    console.log('===>', {id, command, body})
 
     return promise;
   }

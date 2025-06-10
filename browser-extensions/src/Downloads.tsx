@@ -32,11 +32,11 @@ function Downloads() {
 
 function mapFile(file: HistoryFile) {
   if (file.status === 'DOWNLOADED') {
-    return <DownloadedFile file={file} />
+    return <DownloadedFile key={file.id} file={file} />
   } else if (file.status === 'DOWNLOADING') {
-    return <DownloadingFile file={file} />
+    return <DownloadingFile key={file.id} file={file} />
   } else if (file.status === 'PAUSED') {
-    return <PausedFile file={file} />
+    return <PausedFile key={file.id} file={file} />
   }
 }
 
