@@ -3,21 +3,12 @@ import { DownloadPrompt, TreeView } from "./ui";
 import { arrayEquals, resolveFileNameFromURL } from "./util";
 import client from "./api/client";
 import { HistoryFilesContext } from "./context";
-
-declare const chrome: any;
-const PENDING_DOWNLOADS_STORAGE_KEY = 'pendingDownloads';
-interface PendingDownload {
-  id: number
-  url?: string
-  finalUrl?: string
-  fileSize?: number
-  filename?: string
-}
+import browserClient, { PendingDownload } from "./browser_client";
 
 export default function PendingDownloads() {
   const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[]>([]);
   useEffect(() => {
-    getPendingDownloads()
+    browserClient.getPendingDownloads()
       .then(downloads => setPendingDownloads(downloads));
   }, []);
 
@@ -25,7 +16,7 @@ export default function PendingDownloads() {
 
   return (
     <>
-      {pendingDownloads.map(download => <PendingDownload pendingDownload={download} key={download.id} onRefresh={onRefresh} />)}
+      {pendingDownloads.map(download => <DownloadProposal pendingDownload={download} key={download.id} onRefresh={onRefresh} />)}
     </>
   );
 }
@@ -35,7 +26,7 @@ export const FilesStructureContext = createContext<{
   setStructure: (structure: FileStructure[]) => void
 }>({ structure: [], setStructure: () => {} });
 
-function PendingDownload({ pendingDownload, onRefresh }: { pendingDownload: PendingDownload, onRefresh: (downloads: PendingDownload[]) => void }) {
+function DownloadProposal({ pendingDownload, onRefresh }: { pendingDownload: PendingDownload, onRefresh: (downloads: PendingDownload[]) => void }) {
   const url = pendingDownload.finalUrl || pendingDownload.url;
   const [fileName, setFileName] = useState(pendingDownload.filename || (url ? resolveFileNameFromURL(url) : ''));
   const [filePath, setFilePath] = useState<string[]>(['Root']);
@@ -54,8 +45,8 @@ function PendingDownload({ pendingDownload, onRefresh }: { pendingDownload: Pend
   const onDownloadLocaly = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
-    chrome.downloads.resume(pendingDownload.id);
-    removePendingDownload(pendingDownload.id)
+    browserClient.resumeDownload(pendingDownload);
+    browserClient.removePendingDownload(pendingDownload)
       .then(pendingDownloads => onRefresh(pendingDownloads));
   }
 
@@ -68,7 +59,7 @@ function PendingDownload({ pendingDownload, onRefresh }: { pendingDownload: Pend
       .then(newFile => { 
         historyFilesContext.prependFile(newFile);
 
-        removePendingDownload(pendingDownload.id)
+        browserClient.removePendingDownload(pendingDownload)
           .then(pendingDownloads => onRefresh(pendingDownloads));
       });
   }
@@ -76,7 +67,7 @@ function PendingDownload({ pendingDownload, onRefresh }: { pendingDownload: Pend
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setLoading(true);
-    removePendingDownload(pendingDownload.id)
+    browserClient.removePendingDownload(pendingDownload)
       .then(pendingDownloads => onRefresh(pendingDownloads));
   }
 
@@ -237,24 +228,4 @@ function addChildren(structure: FileStructure[], path: string[], children: FileS
   }
 
   return structureCopy;
-}
-
-async function removePendingDownload(id: number): Promise<PendingDownload[]> {
-  const pendingDownloads = await getPendingDownloads();
-  if (pendingDownloads.length === 1 && pendingDownloads[0].id === id) {
-    chrome.storage.local.remove(PENDING_DOWNLOADS_STORAGE_KEY);
-  } else {
-    const index = pendingDownloads.findIndex(download => download.id === id);
-    if (index !== -1) {
-      pendingDownloads.splice(index, 1);
-      chrome.storage.local.set({ [PENDING_DOWNLOADS_STORAGE_KEY]: pendingDownloads });
-      return pendingDownloads;
-    }
-  }
-  return [];
-}
-
-async function getPendingDownloads(): Promise<PendingDownload[]> {
-  const { pendingDownloads } = await chrome.storage.local.get(PENDING_DOWNLOADS_STORAGE_KEY);
-  return pendingDownloads || [];
 }
