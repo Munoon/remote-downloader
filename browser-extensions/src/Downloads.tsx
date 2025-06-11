@@ -3,17 +3,21 @@
 import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
 import client from "./api/client";
-import { HistoryFilesContext } from "./context";
+import { ConnectionContext, HistoryFilesContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloads from "./PendingDownloads";
+import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
 
 function Downloads() {
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
+  const { connected, connecting } = useContext(ConnectionContext);
 
   useEffect(() => {
-    client.getFilesHistory(0, 20)
-      .then(files => setFiles(files.content));
-  }, []);
+    if (connected && !files) {
+      client.getFilesHistory(0, 20)
+        .then(files => setFiles(files.content));
+    }
+  }, [connected]);
 
   const context = {
     files: files || [],
@@ -36,6 +40,7 @@ function Downloads() {
     <HistoryFilesContext.Provider value={context}>
       <PendingDownloads />
       {files && files.map(file => mapFile(file))}
+      {connecting && <LoadingFileProgress />}
     </HistoryFilesContext.Provider>
   );
 }

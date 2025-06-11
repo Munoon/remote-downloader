@@ -4,17 +4,20 @@ import * as SubframeUtils from "./ui/utils";
 import { arrayEquals, copyAndReplace } from "./util";
 import { TreeView } from "./ui";
 import client from './api/client';
-import { DownloadFilePathContext } from './context';
+import { ConnectionContext, DownloadFilePathContext } from './context';
 
 type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
 type FileStructure = FolderStructure | { type: 'file', id: string, name: string };
 
 export default function FilePathSelector() {
   const [structure, setStructure] = useState<FileStructure[] | null>(null);
+  const { connected } = useContext(ConnectionContext);
   useEffect(() => {
-    client.listFolders(null)
-      .then(resp => setStructure(mapFilesToStrucutre(resp.files)));
-  }, []);
+    if (connected && !structure) {
+      client.listFolders(null)
+        .then(resp => setStructure(mapFilesToStrucutre(resp.files)));
+    }
+  }, [connected]);
  
   return (
     <TreeView>
@@ -32,10 +35,15 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
   const [children, setChildren] = useState(structure.children);
   const [childrenLoading, setChildrenLoading] = useState(false);
   const { filePath: selectedPath, setFilePath } = useContext(DownloadFilePathContext);
+  const { connected } = useContext(ConnectionContext);
   const folderPath = [...prefixPath, structure.name];
 
   const onClick: MouseEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
+    if (!connected) {
+      return;
+    }
+
     setFilePath(folderPath);
     
     if (!open && !structure.virtual && children === undefined && !childrenLoading) {

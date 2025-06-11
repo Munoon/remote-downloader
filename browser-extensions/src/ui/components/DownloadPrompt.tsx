@@ -13,7 +13,6 @@ import * as SubframeUtils from "../utils";
 import { TextField } from "./TextField";
 import { Button } from "./Button";
 import { FeatherDownload } from "@subframe/core";
-import { FeatherCloud } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
 import { IconButton } from "./IconButton";
 
@@ -22,11 +21,13 @@ interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLDivElement> {
   fileName: string;
   filePath: string;
   onFileNameChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onDownloadLocaly: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onDownloadLocally: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onDownloadRemotely: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete: (event: React.MouseEvent<HTMLButtonElement>) => void;
   filePathElement: React.ReactNode;
-  disabled: boolean;
+  downloadRemotelyButtonElement: React.ReactNode;
+  remoteSettingsDisabled: boolean;
+  localSettingsDisabled: boolean;
 }
 
 const DownloadPromptRoot = React.forwardRef<
@@ -38,11 +39,13 @@ const DownloadPromptRoot = React.forwardRef<
     fileName,
     filePath,
     onFileNameChange,
-    onDownloadLocaly,
+    onDownloadLocally,
     onDownloadRemotely,
     onDelete,
     filePathElement,
-    disabled,
+    downloadRemotelyButtonElement,
+    remoteSettingsDisabled,
+    localSettingsDisabled,
     ...otherProps
   }: DownloadPromptRootProps,
   ref
@@ -62,7 +65,7 @@ const DownloadPromptRoot = React.forwardRef<
           label="File name"
           helpText=""
         >
-          <TextField.Input value={fileName} onChange={onFileNameChange} disabled={disabled} />
+          <TextField.Input value={fileName} onChange={onFileNameChange} disabled={remoteSettingsDisabled} />
         </TextField>
 
         <label
@@ -87,13 +90,13 @@ const DownloadPromptRoot = React.forwardRef<
           size="small"
           icon={<FeatherTrash />}
           onClick={onDelete}
-          disabled={disabled}
+          disabled={localSettingsDisabled}
           />
         <div className="flex items-center gap-2">
-          <Button variant="neutral-tertiary" icon={<FeatherDownload />} onClick={onDownloadLocaly} disabled={disabled}>
-            Download Localy
+          <Button variant="neutral-tertiary" icon={<FeatherDownload />} onClick={onDownloadLocally} disabled={localSettingsDisabled}>
+            Download Locally
           </Button>
-          <Button icon={<FeatherCloud />} onClick={onDownloadRemotely} disabled={disabled}>Download Remotely</Button>
+          {downloadRemotelyButtonElement}
         </div>
       </div>
     </div>

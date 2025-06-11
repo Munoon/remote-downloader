@@ -2,23 +2,26 @@ import { useEffect, useState } from "react";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
 import client from "./api/client";
+import { ConnectionContext, ConnectionContextType } from "./context";
 
 export default function App() {
-  const [connected, setConnected] = useState(false);
+  const [connection, setConnection] = useState<ConnectionContextType>({ authenticated: true, connected: false, connecting: true });
   useEffect(() => {
     client.getServerHello()
       .then(serverHello => {
-        setConnected(true);
+        setConnection({ authenticated: true, connected: true, connecting: false });
       })
   }, [])
 
   return (
-    <main className="min-w-max min-h-max">
-      <DefaultPageLayout>
-        <div className="flex w-144 flex-col items-start gap-3 bg-default-background px-3 py-3">
-          {connected && <Downloads />}
-        </div>
-      </DefaultPageLayout>
-    </main>
+    <ConnectionContext.Provider value={connection}>
+      <main className="min-w-max min-h-max">
+        <DefaultPageLayout>
+          <div className="flex w-144 flex-col items-start gap-3 bg-default-background px-3 py-3">
+            <Downloads />
+          </div>
+        </DefaultPageLayout>
+      </main>
+    </ConnectionContext.Provider>
   )
 }
