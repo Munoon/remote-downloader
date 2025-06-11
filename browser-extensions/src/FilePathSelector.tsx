@@ -3,7 +3,6 @@ import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
 import * as SubframeUtils from "./ui/utils";
 import { arrayEquals, copyAndReplace } from "./util";
 import { TreeView } from "./ui";
-import client from './api/client';
 import { ConnectionContext, DownloadFilePathContext } from './context';
 
 type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
@@ -11,13 +10,13 @@ type FileStructure = FolderStructure | { type: 'file', id: string, name: string 
 
 export default function FilePathSelector() {
   const [structure, setStructure] = useState<FileStructure[] | null>(null);
-  const { connected } = useContext(ConnectionContext);
+  const { connected, client } = useContext(ConnectionContext);
   useEffect(() => {
-    if (connected && !structure) {
+    if (connected && !structure && client) {
       client.listFolders(null)
         .then(resp => setStructure(mapFilesToStrucutre(resp.files)));
     }
-  }, [connected]);
+  }, [connected, client]);
  
   return (
     <TreeView>
@@ -35,7 +34,7 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
   const [children, setChildren] = useState(structure.children);
   const [childrenLoading, setChildrenLoading] = useState(false);
   const { filePath: selectedPath, setFilePath } = useContext(DownloadFilePathContext);
-  const { connected } = useContext(ConnectionContext);
+  const { connected, client } = useContext(ConnectionContext);
   const folderPath = [...prefixPath, structure.name];
 
   const onClick: MouseEventHandler<HTMLDivElement> = (e) => {
@@ -46,7 +45,7 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
 
     setFilePath(folderPath);
     
-    if (!open && !structure.virtual && children === undefined && !childrenLoading) {
+    if (!open && !structure.virtual && children === undefined && !childrenLoading && client) {
       setChildrenLoading(true);
 
       client.listFolders(folderPath.slice(1).join('/'))

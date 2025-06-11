@@ -1,16 +1,39 @@
 import { useEffect, useState } from "react";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
-import client from "./api/client";
+import WebSocketClient from "./api/client";
 import { ConnectionContext, ConnectionContextType } from "./context";
 
 export default function App() {
-  const [connection, setConnection] = useState<ConnectionContextType>({ authenticated: true, connected: false, connecting: true });
+  const [connection, setConnection] = useState<ConnectionContextType>({ authenticated: true, connected: false, connecting: false });
+  
   useEffect(() => {
-    client.getServerHello()
-      .then(serverHello => {
-        setConnection({ authenticated: true, connected: true, connecting: false });
-      })
+    const client = new WebSocketClient('ws://127.0.0.1:8080/websocket', {
+      onOpen() {
+        setConnection({
+          authenticated: true,
+          connected: true,
+          connecting: false,
+          client
+        })
+      },
+      onClose() {
+        setConnection({
+          authenticated: true,
+          connected: false,
+          connecting: false,
+          failedToConnectReason: 'Connection closed.',
+          client
+        })
+      }
+    })
+
+    setConnection({
+      authenticated: true,
+      connected: false,
+      connecting: false,
+      client
+    });
   }, [])
 
   return (

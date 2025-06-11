@@ -2,7 +2,6 @@
 
 import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
-import client from "./api/client";
 import { ConnectionContext, HistoryFilesContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloads from "./PendingDownloads";
@@ -10,14 +9,14 @@ import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
 
 function Downloads() {
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
-  const { connected, connecting } = useContext(ConnectionContext);
+  const { connected, connecting, client } = useContext(ConnectionContext);
 
   useEffect(() => {
-    if (connected && !files) {
+    if (connected && !files && client) {
       client.getFilesHistory(0, 20)
         .then(files => setFiles(files.content));
     }
-  }, [connected]);
+  }, [connected, client]);
 
   const context = {
     files: files || [],
@@ -58,19 +57,24 @@ function mapFile(file: HistoryFile) {
 function DownloadingFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
   const [loading, setLoading] = useState(false);
+  const { client } = useContext(ConnectionContext);
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
-    client.deleteFile(file.id)
-      .then(() => filesContext.deleteFile(file.id));
+    if (client) {
+      setLoading(true);
+      client.deleteFile(file.id)
+        .then(() => filesContext.deleteFile(file.id));  
+    }
   };
 
   const onPause = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
-    client.stopDownloading(file.id)
-      .then(file => filesContext.updateFile(file));
+    if (client) {
+      setLoading(true);
+      client.stopDownloading(file.id)
+        .then(file => filesContext.updateFile(file));
+    }
   };
 
   let subtitle;
@@ -97,19 +101,24 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
 function PausedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
   const [loading, setLoading] = useState(false);
+  const { client } = useContext(ConnectionContext);
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
-    client.deleteFile(file.id)
-      .then(() => filesContext.deleteFile(file.id));
+    if (client) {
+      setLoading(true);
+      client.deleteFile(file.id)
+        .then(() => filesContext.deleteFile(file.id));
+    }
   };
 
   const onContinue = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
-    client.resumeDownloading(file.id)
-      .then(file => filesContext.updateFile(file));
+    if (client) {
+      setLoading(true);
+      client.resumeDownloading(file.id)
+        .then(file => filesContext.updateFile(file));
+    }
   };
 
   return (
@@ -128,12 +137,15 @@ function PausedFile({ file }: { file: HistoryFile }) {
 function DownloadedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
   const [loading, setLoading] = useState(false);
+  const { client } = useContext(ConnectionContext);
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
-    client.deleteFile(file.id)
-      .then(() => filesContext.deleteFile(file.id));
+    if (client) {
+      setLoading(true);
+      client.deleteFile(file.id)
+        .then(() => filesContext.deleteFile(file.id));
+    }
   };
 
   return (

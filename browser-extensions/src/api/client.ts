@@ -11,32 +11,26 @@ const COMMANDS = {
   LIST_FOLDERS: 9
 };
 
-class WebSocketClient {
+export default class WebSocketClient {
   private readonly socket: WebSocket
   private messageId: number
   private messageHandlers: {
     [key: number]: { resolve: (msg: Message) => void, reject: (msg: Message) => void }
   }
-  private serverHelloPromise: { resolve: (msg: ServerHello) => void, reject: (msg: Message) => void, promise: Promise<ServerHello> }
-  private serverHello: ServerHello | null = null
 
-  constructor(url: string) {
+  constructor(url: string, handlers: { onOpen: () => void, onClose: () => void }) {
     this.messageId = 0;
     this.messageHandlers = {};
 
-    let promiseResolve: (val: ServerHello) => void;
-    let promiseReject: (val: Message) => void;
-    const promise = new Promise<ServerHello>((resolve, reject) => {
-      promiseResolve = resolve;
-      promiseReject = reject;
-    });
-    this.serverHelloPromise = { resolve: promiseResolve!, reject: promiseReject!, promise }
-
     this.socket = new WebSocket(url);
     this.socket.binaryType = "arraybuffer";
+    this.socket.onopen = handlers.onOpen;
+    this.socket.onclose = handlers.onClose;
     this.socket.onmessage = (event: MessageEvent) => this._onSocketMessage(event);
-    this.socket.onerror = (event: Event) => this._onSocketError(event);
-    this.socket.onclose = () => this._onSocketClose();
+    this.socket.onerror = (event: Event) => {
+      console.log("Received WebSocket error", event);
+      this.socket.close();
+    }
   }
 
   _onSocketMessage(event: MessageEvent) {
@@ -53,22 +47,8 @@ class WebSocketClient {
     }
   }
 
-  _onSocketError(event: Event) {
-    console.log("WebSocket error: ", event)
-    this.socket.close();
-  }
-
-  _onSocketClose() {
-    // TODO impl
-  }
-
   _handleServerMessage({ command, body }: Message) {
-    switch (command) {
-      case COMMANDS.SERVER_HELLO:
-        this.serverHello = JSON.parse(body);
-        this.serverHelloPromise.resolve(this.serverHello as ServerHello);
-        break;
-    }
+    // TODO impl
   }
 
   _handleServerResponse(message: Message) {
@@ -102,13 +82,6 @@ class WebSocketClient {
     console.log('===>', {id, command, body})
 
     return promise;
-  }
-
-  getServerHello() {
-    if (this.serverHello) {
-      return Promise.resolve(this.serverHello);
-    }
-    return this.serverHelloPromise.promise;
   }
 
   downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {
@@ -166,5 +139,3 @@ function parseBinaryMessage(buffer: ArrayBuffer): Message {
 
   return { id, command, body };
 }
-
-export default new WebSocketClient('ws://127.0.0.1:8080/websocket');

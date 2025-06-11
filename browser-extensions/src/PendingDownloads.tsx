@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState, createContext, MouseEventHandler } from "react";
 import { DownloadPrompt } from "./ui";
 import { resolveFileNameFromURL } from "./util";
-import client from "./api/client";
 import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext } from "./context";
 import browserClient, { PendingDownload } from "./browser_client";
 import FilePathSelector from "./FilePathSelector";
@@ -47,15 +46,16 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
 
   const onDownloadRemotely = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    setLoading(true);
     
     const url = pendingDownload.finalUrl || pendingDownload.url;
-    if (!url) { // shouldn't happen
+    if (!url || !connection.client) { // shouldn't happen
       return;
     }
 
+    setLoading(true);
+
     const path = filePath.length === 1 ? undefined : filePath.slice(1).join('/');
-    client.downloadFile(url, fileName, path)
+    connection.client.downloadFile(url, fileName, path)
       .then(newFile => { 
         historyFilesContext.prependFile(newFile);
 
