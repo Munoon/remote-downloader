@@ -2,49 +2,78 @@ import { useEffect, useState } from "react";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
 import WebSocketClient from "./api/client";
-import { ConnectionContext, ConnectionContextType } from "./context";
+import { ConnectionContext, ConnectionContextType, UserCredentialsContext } from "./context";
+import browserClient, { UserCredentials } from "./browser_client";
+import LoginCard from "./LoginCard";
 
 export default function App() {
-  const [connection, setConnection] = useState<ConnectionContextType>({ authenticated: true, connected: false, connecting: false });
+  const [connection, setConnection] = useState<{
+    connected: boolean
+    connecting: boolean
+    failedToConnectReason?: string
+    client?: WebSocketClient,
+  }>({ connected: false, connecting: false });
+  const [credentials, setCredentials] = useState<UserCredentials | undefined>();
   
-  useEffect(() => {
-    const client = new WebSocketClient('ws://127.0.0.1:8080/websocket', {
-      onOpen() {
-        setConnection({
-          authenticated: true,
-          connected: true,
-          connecting: false,
-          client
-        })
-      },
-      onClose() {
-        setConnection({
-          authenticated: true,
-          connected: false,
-          connecting: false,
-          failedToConnectReason: 'Connection closed.',
-          client
-        })
-      }
-    })
+  async function effect() {
+    const credentials = await browserClient.getCredentials();
+    if (credentials) {
+      setCredentials(credentials);
+      const client = new WebSocketClient(`ws://${credentials.host}:${credentials.port}/websocket`, {
+        onOpen() {
+          setConnection({
+            connected: true,
+            connecting: false,
+            client
+          });
+        },
+        onClose: buildOnWebSocketClosedHandler(setConnection),
+        onError: buildOnWebSocketErrorHandler(setConnection)
+      });
 
-    setConnection({
-      authenticated: true,
-      connected: false,
-      connecting: false,
-      client
-    });
-  }, [])
+      setConnection({
+        connected: false,
+        connecting: true,
+        client
+      });
+    }
+  }
+  useEffect(() => {
+    effect()
+  }, []);
 
   return (
-    <ConnectionContext.Provider value={connection}>
-      <main className="min-w-max min-h-max">
-        <DefaultPageLayout>
-          <div className="flex w-144 flex-col items-start gap-3 bg-default-background px-3 py-3">
-            <Downloads />
-          </div>
-        </DefaultPageLayout>
-      </main>
+    <ConnectionContext.Provider value={{ ...connection, setConnection }}>
+      <UserCredentialsContext.Provider value={{ credentials, setCredentials }}>
+        <main className="min-w-max min-h-max">
+          <DefaultPageLayout>
+            <div className="flex w-144 flex-col items-start gap-3 bg-default-background px-3 py-3">
+              <Downloads />
+              <LoginCard />
+            </div>
+          </DefaultPageLayout>
+        </main>
+      </UserCredentialsContext.Provider>
     </ConnectionContext.Provider>
   )
+}
+
+export const buildOnWebSocketClosedHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
+  setConnection({
+    connected: false,
+    connecting: false,
+    failedToConnectReason: 'Connection closed.',
+    client: undefined,
+    setConnection
+  })
+}
+
+export const buildOnWebSocketErrorHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
+  setConnection({
+    connected: false,
+    connecting: false,
+    failedToConnectReason: 'Connection error.',
+    client: undefined,
+    setConnection
+  })
 }

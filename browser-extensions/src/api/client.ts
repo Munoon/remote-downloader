@@ -1,3 +1,6 @@
+import { UserCredentials } from "src/browser_client";
+import { ConnectionContextType } from "src/context";
+
 type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
@@ -13,22 +16,25 @@ const COMMANDS = {
 
 export default class WebSocketClient {
   private readonly socket: WebSocket
+  public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
   private messageId: number
   private messageHandlers: {
     [key: number]: { resolve: (msg: Message) => void, reject: (msg: Message) => void }
   }
 
-  constructor(url: string, handlers: { onOpen: () => void, onClose: () => void }) {
+  constructor(url: string, handlers: { onOpen: () => void, onClose: () => void, onError: () => void }) {
     this.messageId = 0;
     this.messageHandlers = {};
+    this.handlers = handlers;
 
     this.socket = new WebSocket(url);
     this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = handlers.onOpen;
-    this.socket.onclose = handlers.onClose;
+    this.socket.onopen = () => this.handlers.onOpen();
+    this.socket.onclose = () => this.handlers.onClose();
     this.socket.onmessage = (event: MessageEvent) => this._onSocketMessage(event);
     this.socket.onerror = (event: Event) => {
       console.log("Received WebSocket error", event);
+      this.handlers.onError();
       this.socket.close();
     }
   }

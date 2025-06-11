@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { PendingDownload } from "./browser_client";
+import { PendingDownload, UserCredentials } from "./browser_client";
 import WebSocketClient from "./api/client";
 
 export const HistoryFilesContext = createContext<{
@@ -20,15 +20,20 @@ export const DownloadFilePathContext = createContext<{
 }>({ filePath: [], setFilePath: () => {} });
 
 export interface ConnectionContextType {
-  authenticated: boolean
   connected: boolean
   connecting: boolean
   failedToConnectReason?: string
-  client?: WebSocketClient
+  client?: WebSocketClient,
+  setConnection: (connection: ConnectionContextType) => void
 }
 export const ConnectionContext = createContext<ConnectionContextType>({
-  authenticated: false,
   connected: false,
   connecting: true,
-  failedToConnectReason: undefined
+  failedToConnectReason: undefined,
+  setConnection: () => {}
 });
+
+export const UserCredentialsContext = createContext<{
+  credentials?: UserCredentials,
+  setCredentials: (credentials?: UserCredentials) => void
+}>({ setCredentials: () => {} })

@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useState, createContext, MouseEventHandler } from "react";
 import { DownloadPrompt } from "./ui";
 import { resolveFileNameFromURL } from "./util";
-import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext } from "./context";
-import browserClient, { PendingDownload } from "./browser_client";
+import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
+import browserClient, { PendingDownload, UserCredentials } from "./browser_client";
 import FilePathSelector from "./FilePathSelector";
 import { Button } from "./ui/components/Button";
 import { Tooltip as MessageTooltip } from "./ui/components/Tooltip";
@@ -29,6 +29,7 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
   const [loading, setLoading] = useState(false);
   const historyFilesContext = useContext(HistoryFilesContext);
   const { setPendingDownloads } = useContext(PendingDownloadContext);
+  const { credentials } = useContext(UserCredentialsContext);
   const connection = useContext(ConnectionContext);
 
   const onFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,7 +78,7 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
     </DownloadFilePathContext.Provider>
   );
 
-  const downloadRemotelyButton = buildDownloadRemotelyButton(connection, onDownloadRemotely);
+  const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, onDownloadRemotely);
 
   return (
     <DownloadPrompt
@@ -89,14 +90,18 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
       onDelete={onDelete}
       filePathElement={filePathElement}
       downloadRemotelyButtonElement={downloadRemotelyButton}
-      remoteSettingsDisabled={!connection.authenticated || connection.connecting || loading}
+      remoteSettingsDisabled={!credentials || connection.connecting || loading}
       localSettingsDisabled={loading}
       />
   )
 }
 
-function buildDownloadRemotelyButton(connection: ConnectionContextType, onDownloadRemotely: MouseEventHandler<HTMLButtonElement>) {
-  if (!connection.authenticated) {
+function buildDownloadRemotelyButton(
+  credentials: UserCredentials | undefined,
+  connection: ConnectionContextType,
+  onDownloadRemotely: MouseEventHandler<HTMLButtonElement>
+) {
+  if (!credentials) {
     return <DisabledButton message="Log in first." />
   }
   if (connection.connecting) {

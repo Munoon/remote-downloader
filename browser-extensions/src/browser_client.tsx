@@ -1,5 +1,6 @@
 declare const chrome: any;
 const PENDING_DOWNLOADS_STORAGE_KEY = 'pendingDownloads';
+const USER_CREDENTIALS_STORAGE_KEY = 'userCredentials';
 
 export interface PendingDownload {
   id: number
@@ -7,6 +8,13 @@ export interface PendingDownload {
   finalUrl?: string
   fileSize?: number
   filename?: string
+}
+
+export interface UserCredentials {
+  host: string
+  port: number
+  username: string
+  passwordEncrypted: string
 }
 
 function resumeDownload(pendingDownload: PendingDownload) {
@@ -35,8 +43,25 @@ async function getPendingDownloads(): Promise<PendingDownload[]> {
   return pendingDownloads || [];
 }
 
+async function getCredentials(): Promise<UserCredentials | undefined> {
+  const credentials = await chrome.storage.local.get(USER_CREDENTIALS_STORAGE_KEY).then((creds?: any) => creds?.userCredentials);
+  return credentials && credentials.host && credentials.port && credentials.username && credentials.passwordEncrypted
+    ? credentials
+    : undefined;
+}
+
+function setCredentials(credentials?: UserCredentials) {
+  if (credentials) {
+    chrome.storage.local.set({ [USER_CREDENTIALS_STORAGE_KEY]: credentials });
+  } else {
+    chrome.storage.local.remove(USER_CREDENTIALS_STORAGE_KEY);
+  }
+}
+
 export default {
   getPendingDownloads,
   removePendingDownload,
-  resumeDownload
+  resumeDownload,
+  getCredentials,
+  setCredentials
 }
