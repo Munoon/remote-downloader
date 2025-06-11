@@ -16,13 +16,12 @@ import { FeatherDownload } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
 import { IconButton } from "./IconButton";
 
-interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLDivElement> {
+interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLFormElement> {
   className?: string;
   fileName: string;
   filePath: string;
   onFileNameChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadLocally: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  onDownloadRemotely: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete: (event: React.MouseEvent<HTMLButtonElement>) => void;
   filePathElement: React.ReactNode;
   downloadRemotelyButtonElement: React.ReactNode;
@@ -40,7 +39,6 @@ const DownloadPromptRoot = React.forwardRef<
     filePath,
     onFileNameChange,
     onDownloadLocally,
-    onDownloadRemotely,
     onDelete,
     filePathElement,
     downloadRemotelyButtonElement,
@@ -51,7 +49,7 @@ const DownloadPromptRoot = React.forwardRef<
   ref
 ) {
   return (
-    <div
+    <form
       className={SubframeUtils.twClassNames(
         "flex w-full flex-col items-start gap-3 rounded-md border border-solid border-neutral-border bg-neutral-50 px-4 py-4",
         className
@@ -99,7 +97,7 @@ const DownloadPromptRoot = React.forwardRef<
           {downloadRemotelyButtonElement}
         </div>
       </div>
-    </div>
+    </form>
   );
 });
 

@@ -45,7 +45,7 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
       .then(pendingDownloads => setPendingDownloads(pendingDownloads));
   }
 
-  const onDownloadRemotely = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDownloadRemotely = (e: { preventDefault: () => void }) => {
     e.preventDefault();
     
     const url = pendingDownload.finalUrl || pendingDownload.url;
@@ -78,7 +78,8 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
     </DownloadFilePathContext.Provider>
   );
 
-  const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, onDownloadRemotely);
+  const remoteSettingsDisabled = !credentials || connection.connecting || loading;
+  const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, remoteSettingsDisabled, onDownloadRemotely);
 
   return (
     <DownloadPrompt
@@ -86,12 +87,12 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
       filePath={filePath.join('/')}
       onFileNameChange={onFileNameChange}
       onDownloadLocally={onDownloadLocally}
-      onDownloadRemotely={onDownloadRemotely}
       onDelete={onDelete}
       filePathElement={filePathElement}
       downloadRemotelyButtonElement={downloadRemotelyButton}
-      remoteSettingsDisabled={!credentials || connection.connecting || loading}
+      remoteSettingsDisabled={remoteSettingsDisabled}
       localSettingsDisabled={loading}
+      onSubmit={onDownloadRemotely}
       />
   )
 }
@@ -99,6 +100,7 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
 function buildDownloadRemotelyButton(
   credentials: UserCredentials | undefined,
   connection: ConnectionContextType,
+  loading: boolean,
   onDownloadRemotely: MouseEventHandler<HTMLButtonElement>
 ) {
   if (!credentials) {
@@ -111,7 +113,7 @@ function buildDownloadRemotelyButton(
     return <DisabledButton message={connection.failedToConnectReason} />
   }
   if (connection.connected) {
-    return <Button icon={<FeatherCloud />} onClick={onDownloadRemotely}>Download Remotely</Button>;
+    return <Button icon={<FeatherCloud />} onClick={onDownloadRemotely} disabled={loading}>Download Remotely</Button>;
   }
 
   // shouldn't happen

@@ -24,7 +24,7 @@ export default function LoginCard() {
     setter(e.target.value);
   };
 
-  const onLoginClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
 
     const newCredentials: UserCredentials = {
@@ -70,7 +70,7 @@ export default function LoginCard() {
   }
 
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-8 rounded-md border border-solid border-neutral-border bg-white px-4 py-4 shadow-sm">
+    <form onSubmit={onSubmit} className="flex w-full flex-col items-center justify-center gap-8 rounded-md border border-solid border-neutral-border bg-white px-4 py-4 shadow-sm">
       <div className="flex w-full flex-col items-start gap-6">
         <span className="text-heading-2 font-heading-2 text-default-font">
           Server Login
@@ -122,8 +122,9 @@ export default function LoginCard() {
         <Button
           className="h-10 w-full flex-none"
           size="large"
-          onClick={onLoginClick}
+          onClick={onSubmit}
           disabled={connecting}
+          type="submit"
         >
           Log in
         </Button>
@@ -136,6 +137,6 @@ export default function LoginCard() {
           </div>
         )}
       </div>
-    </div>
+    </form>
   );
 }
