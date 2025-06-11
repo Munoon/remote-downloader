@@ -39,7 +39,7 @@ function Downloads() {
     <HistoryFilesContext.Provider value={context}>
       <PendingDownloads />
       {files && files.map(file => mapFile(file))}
-      {connecting && <LoadingFileProgress />}
+      {connecting && !files && <LoadingFileProgress />}
     </HistoryFilesContext.Provider>
   );
 }
