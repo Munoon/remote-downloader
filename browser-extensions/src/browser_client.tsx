@@ -11,8 +11,7 @@ export interface PendingDownload {
 }
 
 export interface UserCredentials {
-  host: string
-  port: number
+  address: string
   username: string
   passwordEncrypted: string
 }
@@ -45,7 +44,7 @@ async function getPendingDownloads(): Promise<PendingDownload[]> {
 
 async function getCredentials(): Promise<UserCredentials | undefined> {
   const credentials = await chrome.storage.local.get(USER_CREDENTIALS_STORAGE_KEY).then((creds?: any) => creds?.userCredentials);
-  return credentials && credentials.host && credentials.port && credentials.username && credentials.passwordEncrypted
+  return credentials && credentials.address && credentials.username && credentials.passwordEncrypted
     ? credentials
     : undefined;
 }

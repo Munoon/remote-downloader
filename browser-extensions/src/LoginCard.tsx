@@ -19,17 +19,104 @@ export default function LoginCard() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const onChangeFactory = (setter: (str: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [addressValidation, setAddressValidation] = useState('');
+  const [usernameValidation, setUsernamValidation] = useState('');
+  const [passwordValidation, setPasswordValidation] = useState('');
+
+  function validateAddress(address: string) {
+    if (address.length === 0) {
+      setAddressValidation('Please, provide an address.');
+      return false;
+    }
+    
+    const basicPattern = /^[a-zA-Z0-9.-]+(:\d+)?$/;
+    if (!basicPattern.test(address)) {
+      setAddressValidation("Address must contain only letters, digits, '.', '-', and optional ':port'.");
+      return false;
+    }
+
+    const [host, portStr] = address.split(':');
+    if (!host) {
+      setAddressValidation('Host is missing.');
+      return false;
+    }
+
+    if (portStr !== undefined) {
+      const port = Number(portStr);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        setAddressValidation('Port must be a number between 1 and 65535.');
+        return false;
+      }
+    }
+
+    if (addressValidation.length > 0) {
+      setAddressValidation('');
+    }
+    return true;
+  }
+
+  function validateUsername(username: string) {
+    if (username.length === 0) {
+      setUsernamValidation('Please, provide a username.');
+      return false;
+    }
+    if (username.length > 255) {
+      setUsernamValidation('Username is too large (max length is 255 symbols).');
+      return false;
+    }
+
+    const allowedChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.@';
+    for (let i = 0; i < username.length; i++) {
+      if (!allowedChars.includes(username[i])) {
+        setUsernamValidation(`Invalid character '${username[i]}'. Only letters, digits, underscore (_), dot (.), and @ are allowed.`);
+        return false;
+      }
+    }
+
+    if (usernameValidation.length > 0) {
+      setUsernamValidation('');
+    }
+    return true;
+  }
+
+  function validatePassword(password: string) {
+    if (password.length === 0) {
+      setPasswordValidation('Please, provide a password.');
+      return false;
+    }
+
+    if (passwordValidation.length > 0) {
+      setPasswordValidation('');
+    }
+    return true;
+  }
+
+  const onChangeFactory = (
+    setter: (str: string) => void,
+    validationMessage: string,
+    validator: (arg: string) => any
+  ) => (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    setter(e.target.value);
+
+    const value = e.target.value;
+    setter(value);
+    if (validationMessage.length > 0) {
+      validator(value);
+    }
   };
 
   const onSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
 
+    const addressValid = validateAddress(address);
+    const usernameValid = validateUsername(username);
+    const passwordValid = validatePassword(password);
+    if (!addressValid || !usernameValid || !passwordValid) {
+      return;
+    }
+
     const newCredentials: UserCredentials = {
-      host: address.split(':')[0],
-      port: +address.split(':')[1],
+      address,
       username,
       passwordEncrypted: password
     }
@@ -75,12 +162,13 @@ export default function LoginCard() {
           <TextField
             className="h-auto w-full flex-none"
             label="Server Address"
-            helpText=""
+            helpText={addressValidation}
+            error={addressValidation.length > 0}
           >
             <TextField.Input
               placeholder="127.0.0.1:8080"
               value={address}
-              onChange={onChangeFactory(setAddress)}
+              onChange={onChangeFactory(setAddress, addressValidation, validateAddress)}
               disabled={connecting}
             />
           </TextField>
@@ -89,25 +177,26 @@ export default function LoginCard() {
             <TextField
               className="h-auto w-full flex-none"
               label="Username"
-              helpText=""
+              helpText={usernameValidation}
+              error={usernameValidation.length > 0}
             >
               <TextField.Input
                 placeholder="Enter username..."
                 value={username}
-                onChange={onChangeFactory(setUsername)}
+                onChange={onChangeFactory(setUsername, usernameValidation, validateUsername)}
                 disabled={connecting}
               />
             </TextField>
             <TextField
               className="h-auto w-full flex-none"
-              label="Password"
-              helpText=""
+              helpText={addressValidation}
+              error={passwordValidation.length > 0}
             >
               <TextField.Input
                 type="password"
                 placeholder="Enter password..."
                 value={password}
-                onChange={onChangeFactory(setPassword)}
+                onChange={onChangeFactory(setPassword, passwordValidation, validatePassword)}
                 disabled={connecting}
               />
             </TextField>
@@ -119,7 +208,7 @@ export default function LoginCard() {
           className="h-10 w-full flex-none"
           size="large"
           onClick={onSubmit}
-          disabled={connecting}
+          disabled={connecting || addressValidation.length > 0 || usernameValidation.length > 0 || passwordValidation.length > 0}
           type="submit"
         >
           Log in
