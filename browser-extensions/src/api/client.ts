@@ -1,5 +1,5 @@
 import {ConnectionContextType} from "../context.tsx";
-import {UserCredentials} from "../browser_client.tsx";
+import {UserCredentials} from "../browserClient.tsx";
 
 type Message = { id: number, command: number, body?: any }
 

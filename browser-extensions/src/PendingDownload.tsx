@@ -2,7 +2,7 @@ import React, {useContext, useEffect, useState, MouseEventHandler, EventHandler}
 import { DownloadPrompt } from "./ui";
 import * as util from "./util";
 import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
-import browserClient, { PendingDownload, UserCredentials } from "./browser_client";
+import browserClient, { PendingDownload, UserCredentials } from "./browserClient.tsx";
 import FilePathSelector from "./FilePathSelector";
 import { Button } from "./ui/components/Button";
 import { Tooltip as MessageTooltip } from "./ui/components/Tooltip";

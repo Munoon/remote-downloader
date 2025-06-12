@@ -4,7 +4,7 @@ import { Button } from "@/ui/components/Button";
 import { FeatherAlertCircle } from "@subframe/core";
 import { ConnectionContext, UserCredentialsContext } from "./context";
 import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
-import browserClient, { UserCredentials } from "./browser_client";
+import browserClient, { UserCredentials } from "./browserClient.tsx";
 import { sha256 } from "js-sha256";
 
 export default function LoginCard() {

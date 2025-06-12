@@ -1,5 +1,5 @@
 import { MouseEventHandler, useContext } from "react";
-import browserClient from "./browser_client";
+import browserClient from "./browserClient.tsx";
 import { ConnectionContext, UserCredentialsContext } from "./context";
 import { ErrorMessage } from "./ui/components/ErrorMessage";
 import { FeatherAlertCircle } from "@subframe/core";

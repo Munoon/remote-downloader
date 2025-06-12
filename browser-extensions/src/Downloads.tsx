@@ -6,7 +6,7 @@ import { ConnectionContext, HistoryFilesContext, PendingDownloadContext, UserCre
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloadComponent from "./PendingDownload";
 import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
-import browserClient, { PendingDownload } from "./browser_client";
+import browserClient, { PendingDownload } from "./browserClient.tsx";
 import { NoDownloads } from "./ui/components/NoDownloads";
 import { ErrorMessage } from "./ui/components/ErrorMessage";
 import ConnectionError from "./ConnectionError";

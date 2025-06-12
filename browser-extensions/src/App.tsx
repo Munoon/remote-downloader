@@ -3,7 +3,7 @@ import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
 import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
 import { ConnectionContext, UserCredentialsContext } from "./context";
-import browserClient, { UserCredentials } from "./browser_client";
+import browserClient, { UserCredentials } from "./browserClient.tsx";
 import LoginCard from "./LoginCard";
 
 export default function App() {

@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { PendingDownload, UserCredentials } from "./browser_client";
+import { PendingDownload, UserCredentials } from "./browserClient.tsx";
 import WebSocketClient from "./api/client";
 
 export const HistoryFilesContext = createContext<{
