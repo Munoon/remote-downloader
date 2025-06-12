@@ -32,6 +32,12 @@ function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownloa
   const { credentials } = useContext(UserCredentialsContext);
   const connection = useContext(ConnectionContext);
 
+  useEffect(() => {
+    if (!credentials) {
+      setFilePath(['Root'])
+    }
+  }, [credentials])
+
   const onFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     setFileName(e.target.value);

@@ -2,7 +2,7 @@
 
 import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
-import { ConnectionContext, HistoryFilesContext } from "./context";
+import { ConnectionContext, HistoryFilesContext, UserCredentialsContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloads from "./PendingDownloads";
 import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
@@ -10,13 +10,16 @@ import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
 function Downloads() {
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
   const { connected, connecting, client } = useContext(ConnectionContext);
+  const { credentials } = useContext(UserCredentialsContext);
 
   useEffect(() => {
     if (connected && !files && client) {
       client.getFilesHistory(0, 20)
         .then(files => setFiles(files.content));
+    } else if (!credentials && files) {
+      setFiles(undefined);
     }
-  }, [connected, client]);
+  }, [connected, client, credentials]);
 
   const context = {
     files: files || [],

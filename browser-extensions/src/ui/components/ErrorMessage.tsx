@@ -2,15 +2,12 @@
 /*
  * Documentation:
  * Error Message — https://app.subframe.com/dd13c78ea6fd/library?component=Error+Message_1ed07ed4-7cd8-4721-b9b4-ef4fcbe09920
- * Icon Button — https://app.subframe.com/dd13c78ea6fd/library?component=Icon+Button_af9405b1-8c54-4e01-9786-5aad308224f6
  */
 
 import React from "react";
 import * as SubframeUtils from "../utils";
 import * as SubframeCore from "@subframe/core";
 import { FeatherAlertCircle } from "@subframe/core";
-import { IconButton } from "./IconButton";
-import { FeatherX } from "@subframe/core";
 
 interface ErrorMessageRootProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: React.ReactNode;
@@ -47,7 +44,6 @@ const ErrorMessageRoot = React.forwardRef<HTMLElement, ErrorMessageRootProps>(
             {text}
           </span>
         ) : null}
-        <IconButton size="small" icon={<FeatherX />} />
       </div>
     );
   }

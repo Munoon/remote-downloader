@@ -3,7 +3,7 @@ import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
 import * as SubframeUtils from "./ui/utils";
 import { arrayEquals, copyAndReplace } from "./util";
 import { TreeView } from "./ui";
-import { ConnectionContext, DownloadFilePathContext } from './context';
+import { ConnectionContext, DownloadFilePathContext, UserCredentialsContext } from './context';
 
 type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
 type FileStructure = FolderStructure | { type: 'file', id: string, name: string };
@@ -11,12 +11,16 @@ type FileStructure = FolderStructure | { type: 'file', id: string, name: string 
 export default function FilePathSelector() {
   const [structure, setStructure] = useState<FileStructure[] | null>(null);
   const { connected, client } = useContext(ConnectionContext);
+  const { credentials } = useContext(UserCredentialsContext);
+
   useEffect(() => {
     if (connected && !structure && client) {
       client.listFolders(null)
         .then(resp => setStructure(mapFilesToStrucutre(resp.files)));
+    } else if (!credentials && structure) {
+      setStructure(null);
     }
-  }, [connected, client]);
+  }, [connected, client, credentials]);
  
   return (
     <TreeView>
