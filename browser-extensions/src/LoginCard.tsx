@@ -1,11 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, {EventHandler, useContext, useState} from "react";
 import { TextField } from "@/ui/components/TextField";
 import { Button } from "@/ui/components/Button";
 import { FeatherAlertCircle } from "@subframe/core";
 import { ConnectionContext, UserCredentialsContext } from "./context";
-import WebSocketClient from "./api/client";
+import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
 import browserClient, { UserCredentials } from "./browser_client";
-import { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./App";
 import { sha256 } from "js-sha256";
 
 export default function LoginCard() {
@@ -66,6 +65,7 @@ export default function LoginCard() {
       return false;
     }
 
+    // noinspection SpellCheckingInspection
     const allowedChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.@';
     for (let i = 0; i < username.length; i++) {
       if (!allowedChars.includes(username[i])) {
@@ -106,7 +106,7 @@ export default function LoginCard() {
     }
   };
 
-  const onSubmit = (e: { preventDefault: () => void }) => {
+  const onSubmit: EventHandler<any> = (e) => {
     e.preventDefault();
 
     const addressValid = validateAddress(address);

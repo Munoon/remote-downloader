@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, MouseEventHandler } from "react";
+import React, {useContext, useEffect, useState, MouseEventHandler, EventHandler} from "react";
 import { DownloadPrompt } from "./ui";
 import * as util from "./util";
 import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
@@ -10,15 +10,15 @@ import { FeatherCloud, Tooltip } from "@subframe/core";
 import { Loader } from "./ui/components/Loader";
 
 export default function PendingDownloadComponent({ pendingDownload }: { pendingDownload: PendingDownload }) {
+  const historyFilesContext = useContext(HistoryFilesContext);
+  const { setPendingDownloads } = useContext(PendingDownloadContext);
+  const { credentials } = useContext(UserCredentialsContext);
+  const connection = useContext(ConnectionContext);
   const [fileName, setFileName] = useState(buildDefaultFileName(pendingDownload));
   const [filePath, setFilePath] = useState<string[]>(['Root']);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [fileNameValidationMessage, setFileNameValidationMessage] = useState('');
-  const historyFilesContext = useContext(HistoryFilesContext);
-  const { setPendingDownloads } = useContext(PendingDownloadContext);
-  const { credentials } = useContext(UserCredentialsContext);
-  const connection = useContext(ConnectionContext);
 
   useEffect(() => {
     if (!credentials) {
@@ -52,7 +52,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
       .then(pendingDownloads => setPendingDownloads(pendingDownloads));
   }
 
-  const onDownloadRemotely = (e: { preventDefault: () => void }) => {
+  const onDownloadRemotely: EventHandler<any> = (e) => {
     e.preventDefault();
 
     const url = pendingDownload.finalUrl || pendingDownload.url;

@@ -1,3 +1,5 @@
+import {ConnectionContextType} from "../context.tsx";
+
 type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
@@ -14,7 +16,7 @@ const COMMANDS = {
 export default class WebSocketClient {
   private readonly socket: WebSocket
   private readonly messageHandlers: {
-    [key: number]: { resolve: (msg: Message) => void, reject: (msg: any) => void }
+    [key: number]: { resolve: (msg: any) => void, reject: (msg: any) => void }
   }
   public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
   private messageId: number
@@ -61,18 +63,18 @@ export default class WebSocketClient {
       if (message.command === COMMANDS.ERROR) {
         handler.reject(body);
       } else {
-        handler.resolve({ ...message, body });
+        handler.resolve(body);
       }
       delete this.messageHandlers[message.id];
     }
   }
 
-  _send(command: number, body: string): Promise<Message> {
+  _send(command: number, body: string): Promise<any> {
     const id = ++this.messageId;
 
-    let promiseResolve: (val: Message) => void;
+    let promiseResolve: (val: any) => void;
     let promiseReject: (val: any) => void;
-    const promise = new Promise<Message>((resolve, reject) => {
+    const promise = new Promise<any>((resolve, reject) => {
       promiseResolve = resolve;
       promiseReject = reject;
     });
@@ -88,23 +90,19 @@ export default class WebSocketClient {
   }
 
   downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({ url, fileName, path }))
-      .then(msg => msg.body);
+    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({url, fileName, path}));
   }
 
   getFilesHistory(page: number, size: number): Promise<Page<HistoryFile>> {
-    return this._send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({ page, size }))
-      .then(msg => msg.body);
+    return this._send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({page, size}));
   }
 
   stopDownloading(fileId: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.STOP_DOWNLOADING, JSON.stringify({ fileId }))
-      .then(msg => msg.body);
+    return this._send(COMMANDS.STOP_DOWNLOADING, JSON.stringify({fileId}));
   }
 
   resumeDownloading(fileId: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.RESUME_DOWNLOADING, JSON.stringify({ fileId }))
-      .then(msg => msg.body);
+    return this._send(COMMANDS.RESUME_DOWNLOADING, JSON.stringify({fileId}));
   }
 
   deleteFile(fileId: string) {
@@ -112,9 +110,28 @@ export default class WebSocketClient {
   }
 
   listFolders(path: string | null): Promise<ListFoldersResponse> {
-    return this._send(COMMANDS.LIST_FOLDERS, JSON.stringify({ path }))
-      .then(msg => msg.body);
+    return this._send(COMMANDS.LIST_FOLDERS, JSON.stringify({path}));
   }
+}
+
+export const buildOnWebSocketClosedHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
+  setConnection({
+    connected: false,
+    connecting: false,
+    failedToConnectReason: 'Connection closed.',
+    client: undefined,
+    setConnection
+  })
+}
+
+export const buildOnWebSocketErrorHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
+  setConnection({
+    connected: false,
+    connecting: false,
+    failedToConnectReason: 'Connection error.',
+    client: undefined,
+    setConnection
+  })
 }
 
 function buildBinaryMessage({ id, command, body }: Message) {

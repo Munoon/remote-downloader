@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
-import WebSocketClient from "./api/client";
-import { ConnectionContext, ConnectionContextType, UserCredentialsContext } from "./context";
+import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
+import { ConnectionContext, UserCredentialsContext } from "./context";
 import browserClient, { UserCredentials } from "./browser_client";
 import LoginCard from "./LoginCard";
 
@@ -56,24 +56,4 @@ export default function App() {
       </UserCredentialsContext.Provider>
     </ConnectionContext.Provider>
   )
-}
-
-export const buildOnWebSocketClosedHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
-  setConnection({
-    connected: false,
-    connecting: false,
-    failedToConnectReason: 'Connection closed.',
-    client: undefined,
-    setConnection
-  })
-}
-
-export const buildOnWebSocketErrorHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
-  setConnection({
-    connected: false,
-    connecting: false,
-    failedToConnectReason: 'Connection error.',
-    client: undefined,
-    setConnection
-  })
 }

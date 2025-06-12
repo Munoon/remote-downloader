@@ -1,4 +1,4 @@
-import { useState, useEffect, MouseEventHandler, useContext, ChangeEventHandler } from 'react';
+import {useState, useEffect, MouseEventHandler, useContext, ChangeEventHandler, EventHandler} from 'react';
 import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
 import * as SubframeUtils from "./ui/utils";
 import { arrayEquals, copyAndReplace, validateFileName } from "./util";
@@ -33,6 +33,7 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
   const isRoot = arrayEquals(folderPath, ['Root']);
 
   if (isRoot) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       if (!credentials) {
         if (children) {
@@ -144,9 +145,9 @@ function EditingStructureFolder({ id, prefixPath, setChildren }: {
   prefixPath: string[],
   setChildren: (id: string, child: FileStructure) => void
 }) {
+  const { setFilePath } = useContext(DownloadFilePathContext);
   const [folderName, setFolderName] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
-  const { setFilePath } = useContext(DownloadFilePathContext);
 
   function validateName(name: string): boolean {
     const validationResult = validateFileName(name, 'Folder');
@@ -156,7 +157,7 @@ function EditingStructureFolder({ id, prefixPath, setChildren }: {
     return validationResult.valid;
   }
 
-  const onSubmit = (e: { preventDefault: () => void }) => {
+  const onSubmit: EventHandler<any> = (e) => {
     e.preventDefault();
     
     if (validateName(folderName)) {
