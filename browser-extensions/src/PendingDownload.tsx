@@ -9,21 +9,7 @@ import { Tooltip as MessageTooltip } from "./ui/components/Tooltip";
 import { FeatherCloud, Tooltip } from "@subframe/core";
 import { Loader } from "./ui/components/Loader";
 
-export default function PendingDownloads() {
-  const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[]>([]);
-  useEffect(() => {
-    browserClient.getPendingDownloads()
-      .then(downloads => setPendingDownloads(downloads));
-  }, []);
-
-  return (
-    <PendingDownloadContext.Provider value={{ pendingDownloads, setPendingDownloads }}>
-      {pendingDownloads.map(download => <DownloadProposal pendingDownload={download} key={download.id} />)}
-    </PendingDownloadContext.Provider>
-  );
-}
-
-function DownloadProposal({ pendingDownload }: { pendingDownload: PendingDownload }) {
+export default function PendingDownloadComponent({ pendingDownload }: { pendingDownload: PendingDownload }) {
   const [fileName, setFileName] = useState(buildDefaultFileName(pendingDownload));
   const [filePath, setFilePath] = useState<string[]>(['Root']);
   const [loading, setLoading] = useState(false);

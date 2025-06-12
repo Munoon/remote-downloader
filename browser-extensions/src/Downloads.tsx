@@ -2,15 +2,18 @@
 
 import { FileProgress } from "@/ui/components/FileProgress";
 import { useState, useEffect, useContext } from "react";
-import { ConnectionContext, HistoryFilesContext, UserCredentialsContext } from "./context";
+import { ConnectionContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
-import PendingDownloads from "./PendingDownloads";
+import PendingDownloadComponent from "./PendingDownload";
 import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
+import browserClient, { PendingDownload } from "./browser_client";
+import { NoDownloads } from "./ui/components/NoDownloads";
 
 function Downloads() {
-  const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
   const { connected, connecting, client } = useContext(ConnectionContext);
   const { credentials } = useContext(UserCredentialsContext);
+  const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
+  const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[] | null>(null);
 
   useEffect(() => {
     if (connected && !files && client) {
@@ -20,6 +23,11 @@ function Downloads() {
       setFiles(undefined);
     }
   }, [connected, client, credentials]);
+
+  useEffect(() => {
+    browserClient.getPendingDownloads()
+      .then(downloads => setPendingDownloads(downloads));
+  }, []);
 
   const context = {
     files: files || [],
@@ -40,9 +48,17 @@ function Downloads() {
 
   return (
     <HistoryFilesContext.Provider value={context}>
-      <PendingDownloads />
+      <PendingDownloadContext.Provider value={{ pendingDownloads: pendingDownloads || [], setPendingDownloads }}>
+        {pendingDownloads && pendingDownloads.map(download =>
+          <PendingDownloadComponent pendingDownload={download} key={download.id} />
+        )}
+      </PendingDownloadContext.Provider>
+
       {files && files.map(file => mapFile(file))}
       {connecting && !files && <LoadingFileProgress />}
+      {files && files.length === 0 && pendingDownloads && pendingDownloads.length === 0 && connected && credentials && (
+        <NoDownloads />
+      )}
     </HistoryFilesContext.Provider>
   );
 }

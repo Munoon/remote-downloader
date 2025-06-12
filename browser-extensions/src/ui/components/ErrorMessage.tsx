@@ -28,7 +28,7 @@ const ErrorMessageRoot = React.forwardRef<HTMLElement, ErrorMessageRootProps>(
     return (
       <div
         className={SubframeUtils.twClassNames(
-          "flex w-full items-center gap-4 rounded-md bg-error-50 px-4 py-4",
+          "flex w-full items-center gap-4 rounded-sm bg-error-50 px-4 py-4",
           className
         )}
         ref={ref as any}
