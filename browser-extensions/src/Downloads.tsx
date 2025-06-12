@@ -9,9 +9,10 @@ import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
 import browserClient, { PendingDownload } from "./browser_client";
 import { NoDownloads } from "./ui/components/NoDownloads";
 import { ErrorMessage } from "./ui/components/ErrorMessage";
+import ConnectionError from "./ConnectionError";
 
 function Downloads() {
-  const { connected, client } = useContext(ConnectionContext);
+  const { connected, client, failedToConnectReason } = useContext(ConnectionContext);
   const { credentials } = useContext(UserCredentialsContext);
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
   const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[] | null>(null);
@@ -62,12 +63,13 @@ function Downloads() {
         )}
       </PendingDownloadContext.Provider>
 
+      <ConnectionError />
+      {errorMessage && <ErrorMessage text={errorMessage} />}
       {files && files.map(file => mapFile(file))}
-      {!files && !errorMessage && credentials && <LoadingFileProgress />}
-      {files && files.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && credentials && (
+      {!files && connected && <LoadingFileProgress />}
+      {files && files.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && !failedToConnectReason && (
         <NoDownloads />
       )}
-      {errorMessage && <ErrorMessage text={errorMessage} />}
     </HistoryFilesContext.Provider>
   );
 }
@@ -84,7 +86,7 @@ function mapFile(file: HistoryFile) {
 
 function DownloadingFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const { client } = useContext(ConnectionContext);
+  const { client, connected } = useContext(ConnectionContext);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -138,7 +140,7 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
       onDeleteHook={onDelete}
       onPauseHook={onPause}
       key={file.id}
-      buttonsDisabled={loading}
+      buttonsDisabled={!connected || loading}
       errorMessage={errorMessage}
       />
   );
@@ -146,7 +148,7 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
 
 function PausedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const { client } = useContext(ConnectionContext);
+  const { client, connected } = useContext(ConnectionContext);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -191,7 +193,7 @@ function PausedFile({ file }: { file: HistoryFile }) {
       onDeleteHook={onDelete}
       onContinueHook={onContinue}
       key={file.id}
-      buttonsDisabled={loading}
+      buttonsDisabled={!connected || loading}
       progress={(file.downloadedBytes / file.totalBytes) * 100}
       errorMessage={errorMessage}
       />
@@ -200,7 +202,7 @@ function PausedFile({ file }: { file: HistoryFile }) {
 
 function DownloadedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const { client } = useContext(ConnectionContext);
+  const { client, connected } = useContext(ConnectionContext);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -227,7 +229,7 @@ function DownloadedFile({ file }: { file: HistoryFile }) {
       variant="downloaded"
       onDeleteHook={onDelete}
       key={file.id}
-      buttonsDisabled={loading}
+      buttonsDisabled={!connected || loading}
       errorMessage={errorMessage}
       />
   )
