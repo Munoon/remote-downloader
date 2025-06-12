@@ -19,7 +19,7 @@ export default function App() {
     const credentials = await browserClient.getCredentials();
     if (credentials) {
       setCredentials(credentials);
-      const client = new WebSocketClient(`ws://${credentials.address}/websocket`, {
+      const client = new WebSocketClient(`ws://${credentials.address}/websocket`, credentials, {
         onOpen() {
           setConnection({
             connected: true,

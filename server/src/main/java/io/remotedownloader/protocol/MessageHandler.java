@@ -2,19 +2,18 @@ package io.remotedownloader.protocol;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.remotedownloader.Holder;
 import io.remotedownloader.dao.DownloadManagerDao;
 import io.remotedownloader.protocol.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.protocol.dto.Error;
+import io.remotedownloader.protocol.dto.Error.ErrorTypes;
 import io.remotedownloader.protocol.dto.FileDTO;
 import io.remotedownloader.protocol.dto.FileIdRequestDTO;
 import io.remotedownloader.protocol.dto.FileStatus;
-import io.remotedownloader.protocol.dto.InfoMessage;
 import io.remotedownloader.protocol.dto.ListFoldersRequestDTO;
 import io.remotedownloader.protocol.dto.ListFoldersResponseDTO;
+import io.remotedownloader.protocol.dto.LoginRequestDTO;
 import io.remotedownloader.protocol.dto.Page;
-import io.remotedownloader.util.JsonUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +21,6 @@ import java.util.Arrays;
 
 public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
     private static final Logger log = LogManager.getLogger(MessageHandler.class);
-    private final String infoMessageJson;
     private final DownloadManagerDao downloadManagerDao;
     private volatile FileDTO[] files = {
             new FileDTO("1", "example1.png", FileStatus.DOWNLOADING, 10000000, 2500000, 10543),
@@ -32,7 +30,6 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
 
     public MessageHandler(Holder holder) {
         super(StringMessage.class, false);
-        this.infoMessageJson = JsonUtil.writeValueAsString(new InfoMessage("1.0"));
         this.downloadManagerDao = holder.downloadManagerDao;
     }
 
@@ -40,13 +37,14 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
     protected void channelRead0(ChannelHandlerContext ctx, StringMessage msg) {
         try {
             StringMessage response = switch (msg.command()) {
+                case ProtocolCommands.LOGIN -> login(msg);
                 case ProtocolCommands.DOWNLOAD_URL -> downloadUrl(ctx, msg);
                 case ProtocolCommands.GET_FILES_HISTORY -> getFilesHistory(msg);
                 case ProtocolCommands.STOP_DOWNLOADING -> stopDownloading(msg);
                 case ProtocolCommands.DELETE_FILE -> deleteFile(msg);
                 case ProtocolCommands.RESUME_DOWNLOADING -> resumeDownloading(msg);
                 case ProtocolCommands.LIST_FOLDERS -> listFolders(msg);
-                default -> StringMessage.error(msg, Error.ErrorTypes.UNKNOWN_COMMAND, "Unknown command.");
+                default -> StringMessage.error(msg, ErrorTypes.UNKNOWN_COMMAND, "Unknown command.");
             };
 
             if (response != null) {
@@ -56,8 +54,15 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
             ctx.writeAndFlush(StringMessage.json(msg, e.error));
         } catch (Exception e) {
             log.warn("Failed unknown exception while handling client request", e);
-            ctx.writeAndFlush(StringMessage.error(msg, Error.ErrorTypes.UNKNOWN, "Unknown error."));
+            ctx.writeAndFlush(StringMessage.error(msg, ErrorTypes.UNKNOWN, "Unknown error."));
         }
+    }
+
+    private StringMessage login(StringMessage msg) {
+        LoginRequestDTO req = msg.parseJson(LoginRequestDTO.class);
+        return "admin".equals(req.username())
+                ? StringMessage.ok(msg)
+                : StringMessage.error(msg, ErrorTypes.INCORRECT_CREDENTIALS, "Incorrect username or password.");
     }
 
     private StringMessage downloadUrl(ChannelHandlerContext ctx, StringMessage msg) {
@@ -83,7 +88,7 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
             }
         }
 
-        return StringMessage.error(msg, Error.ErrorTypes.NOT_FOUND, "File is not found.");
+        return StringMessage.error(msg, ErrorTypes.NOT_FOUND, "File is not found.");
     }
 
     private StringMessage deleteFile(StringMessage msg) {
@@ -116,23 +121,13 @@ public class MessageHandler extends SimpleChannelInboundHandler<StringMessage> {
             }
         }
 
-        return StringMessage.error(msg, Error.ErrorTypes.NOT_FOUND, "Files is not found.");
+        return StringMessage.error(msg, ErrorTypes.NOT_FOUND, "Files is not found.");
     }
 
     private StringMessage listFolders(StringMessage msg) {
         ListFoldersRequestDTO req = msg.parseJson(ListFoldersRequestDTO.class);
         ListFoldersResponseDTO response = downloadManagerDao.listFolders(req.path());
         return StringMessage.json(msg, response);
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
-            StringMessage message = new StringMessage(0, ProtocolCommands.SERVER_HELLO, infoMessageJson);
-            ctx.writeAndFlush(message);
-        }
-
-        super.userEventTriggered(ctx, evt);
     }
 
     @Override

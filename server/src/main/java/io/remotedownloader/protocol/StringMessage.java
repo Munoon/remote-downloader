@@ -18,7 +18,7 @@ public record StringMessage(
     }
 
     public static StringMessage ok(StringMessage req) {
-        return json(req.id, ProtocolCommands.OK, null);
+        return json(req.id, req.command(), null);
     }
 
     public static StringMessage error(StringMessage req, Error.ErrorTypes type, String message) {

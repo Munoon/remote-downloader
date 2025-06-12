@@ -1,9 +1,10 @@
 import {ConnectionContextType} from "../context.tsx";
+import {UserCredentials} from "../browser_client.tsx";
 
 type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
-  SERVER_HELLO: 1,
+  LOGIN: 1,
   ERROR: 2,
   DOWNLOAD_URL: 4,
   GET_FILES_HISTORY: 5,
@@ -13,27 +14,40 @@ const COMMANDS = {
   LIST_FOLDERS: 9
 };
 
+interface WebSocketClientHandler {
+  onOpen: () => void;
+  onClose: () => void;
+  onError: (error: ServerError) => void;
+}
+
 export default class WebSocketClient {
   private readonly socket: WebSocket
   private readonly messageHandlers: {
     [key: number]: { resolve: (msg: any) => void, reject: (msg: any) => void }
   }
-  public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
+  public handlers: WebSocketClientHandler
   private messageId: number
 
-  constructor(url: string, handlers: { onOpen: () => void, onClose: () => void, onError: () => void }) {
+  constructor(url: string, credentials: UserCredentials, handlers: WebSocketClientHandler) {
     this.messageId = 0;
     this.messageHandlers = {};
     this.handlers = handlers;
 
     this.socket = new WebSocket(url);
     this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = () => this.handlers.onOpen();
+    this.socket.onopen = async () => {
+      try {
+        await this.login(credentials.username, credentials.passwordEncrypted);
+        handlers.onOpen();
+      } catch (error) {
+        handlers.onError(error as ServerError);
+      }
+    };
     this.socket.onclose = () => this.handlers.onClose();
     this.socket.onmessage = (event: MessageEvent) => this._onSocketMessage(event);
     this.socket.onerror = (event: Event) => {
       console.log("Received WebSocket error", event);
-      this.handlers.onError();
+      this.handlers.onError({ type: 'UNKNOWN', message: 'Connection failed.' });
       this.socket.close();
     }
   }
@@ -89,6 +103,10 @@ export default class WebSocketClient {
     return promise;
   }
 
+  login(username: string, password: string) {
+    return this._send(COMMANDS.LOGIN, JSON.stringify({ username, password }));
+  }
+
   downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {
     return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({url, fileName, path}));
   }
@@ -124,11 +142,11 @@ export const buildOnWebSocketClosedHandler = (setConnection: (connection: Connec
   })
 }
 
-export const buildOnWebSocketErrorHandler = (setConnection: (connection: ConnectionContextType) => void) => () => {
+export const buildOnWebSocketErrorHandler = (setConnection: (connection: ConnectionContextType) => void) => (error: ServerError) => {
   setConnection({
     connected: false,
     connecting: false,
-    failedToConnectReason: 'Connection error.',
+    failedToConnectReason: error.message,
     client: undefined,
     setConnection
   })

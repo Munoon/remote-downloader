@@ -122,7 +122,7 @@ export default function LoginCard() {
       passwordEncrypted: sha256(password + username)
     }
 
-    const client = new WebSocketClient(`ws://${address}/websocket`, {
+    const client = new WebSocketClient(`ws://${address}/websocket`, newCredentials, {
       onOpen() {
         client.handlers = {
           onOpen() {},
@@ -142,10 +142,10 @@ export default function LoginCard() {
           })
         }
       },
-      onError() {
+      onError(error) {
         setNewConnection({
           connecting: false,
-          failedToConnectReason: 'Connection failed.'
+          failedToConnectReason: error.message
         })
       }
     });
