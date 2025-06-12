@@ -14,6 +14,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
   const [filePath, setFilePath] = useState<string[]>(['Root']);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [fileNameErrorMessage, setFileNameErrorMessage] = useState('');
   const historyFilesContext = useContext(HistoryFilesContext);
   const { setPendingDownloads } = useContext(PendingDownloadContext);
   const { credentials } = useContext(UserCredentialsContext);
@@ -25,9 +26,36 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
     }
   }, [credentials])
 
+  function validateFileName(fileName: string): boolean {
+    if (fileName.length === 0) {
+      setFileNameErrorMessage('File name is empty.');
+      return false;
+    }
+
+    if (fileName.length > 255) {
+      setFileNameErrorMessage('File name is too long (limit is 255 characters).');
+      return false;
+    }
+
+    if (fileName.includes('/') || fileName.includes('\0')) {
+      setFileNameErrorMessage("File name cannot contain '/' character.");
+      return false;
+    }
+
+    if (fileNameErrorMessage) {
+      setFileNameErrorMessage('');
+    }
+    return true;
+  }
+
   const onFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    setFileName(e.target.value);
+
+    const fileName = e.target.value;
+    setFileName(fileName);
+    if (fileNameErrorMessage) {
+      validateFileName(fileName);
+    }
   }
 
   const onDownloadLocally = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -43,6 +71,11 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
     
     const url = pendingDownload.finalUrl || pendingDownload.url;
     if (!url || !connection.client) { // shouldn't happen
+      setErrorMessage('Failed to resolve the file URL.');
+      return;
+    }
+
+    if (!validateFileName(fileName)) {
       return;
     }
 
@@ -79,7 +112,8 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
   );
 
   const remoteSettingsDisabled = !credentials || connection.connecting || loading;
-  const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, remoteSettingsDisabled, onDownloadRemotely);
+  const remoteDownloadButtonDisabled = remoteSettingsDisabled || fileNameErrorMessage.length > 0;
+  const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, remoteDownloadButtonDisabled, onDownloadRemotely);
 
   return (
     <DownloadPrompt
@@ -94,6 +128,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
       localSettingsDisabled={loading}
       onSubmit={onDownloadRemotely}
       errorMessage={errorMessage}
+      fileNameErrorMessage={fileNameErrorMessage}
       />
   )
 }

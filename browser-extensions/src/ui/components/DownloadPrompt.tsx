@@ -29,6 +29,7 @@ interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLFormElement> 
   remoteSettingsDisabled: boolean;
   localSettingsDisabled: boolean;
   errorMessage: string;
+  fileNameErrorMessage?: string;
 }
 
 const DownloadPromptRoot = React.forwardRef<
@@ -47,6 +48,7 @@ const DownloadPromptRoot = React.forwardRef<
     downloadRemotelyButtonElement,
     remoteSettingsDisabled,
     localSettingsDisabled,
+    fileNameErrorMessage,
     ...otherProps
   }: DownloadPromptRootProps,
   ref
@@ -64,7 +66,8 @@ const DownloadPromptRoot = React.forwardRef<
         <TextField
           className="h-auto w-full flex-none"
           label="File name"
-          helpText=""
+          helpText={fileNameErrorMessage}
+          error={fileNameErrorMessage ? true : false}
         >
           <TextField.Input value={fileName} onChange={onFileNameChange} disabled={remoteSettingsDisabled} />
         </TextField>
