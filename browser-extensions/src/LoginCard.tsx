@@ -6,6 +6,7 @@ import { ConnectionContext, UserCredentialsContext } from "./context";
 import WebSocketClient from "./api/client";
 import browserClient, { UserCredentials } from "./browser_client";
 import { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./App";
+import { sha256 } from "js-sha256";
 
 export default function LoginCard() {
   const { setCredentials } = useContext(UserCredentialsContext);
@@ -118,7 +119,7 @@ export default function LoginCard() {
     const newCredentials: UserCredentials = {
       address,
       username,
-      passwordEncrypted: password
+      passwordEncrypted: sha256(password + username)
     }
 
     const client = new WebSocketClient(`ws://${address}/websocket`, {
