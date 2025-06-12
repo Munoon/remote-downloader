@@ -8,7 +8,7 @@ import browserClient, { UserCredentials } from "./browser_client";
 import { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./App";
 
 export default function LoginCard() {
-  const { credentials, setCredentials } = useContext(UserCredentialsContext);
+  const { setCredentials } = useContext(UserCredentialsContext);
   const { setConnection } = useContext(ConnectionContext);
   const [{ connecting, failedToConnectReason }, setNewConnection] = useState<{
     connecting: boolean,
@@ -64,10 +64,6 @@ export default function LoginCard() {
 
     setNewConnection({ connecting: true });
   };
-
-  if (credentials) {
-    return null;
-  }
 
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col items-center justify-center gap-8 rounded-md border border-solid border-neutral-border bg-white px-4 py-4 shadow-sm">

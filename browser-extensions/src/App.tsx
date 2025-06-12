@@ -50,8 +50,8 @@ export default function App() {
           <DefaultPageLayout>
             <div className="flex w-144 flex-col items-start gap-3 bg-default-background px-3 py-3">
               <Downloads />
-              <LoginCard />
               <ConnectionError />
+              {!credentials && <LoginCard />}
             </div>
           </DefaultPageLayout>
         </main>
