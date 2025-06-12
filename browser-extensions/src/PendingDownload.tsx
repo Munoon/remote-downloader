@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, createContext, MouseEventHandler } from "react";
 import { DownloadPrompt } from "./ui";
-import { resolveFileNameFromURL } from "./util";
+import * as util from "./util";
 import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
 import browserClient, { PendingDownload, UserCredentials } from "./browser_client";
 import FilePathSelector from "./FilePathSelector";
@@ -14,7 +14,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
   const [filePath, setFilePath] = useState<string[]>(['Root']);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [fileNameErrorMessage, setFileNameErrorMessage] = useState('');
+  const [fileNameValidationMessage, setFileNameValidationMessage] = useState('');
   const historyFilesContext = useContext(HistoryFilesContext);
   const { setPendingDownloads } = useContext(PendingDownloadContext);
   const { credentials } = useContext(UserCredentialsContext);
@@ -27,25 +27,11 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
   }, [credentials])
 
   function validateFileName(fileName: string): boolean {
-    if (fileName.length === 0) {
-      setFileNameErrorMessage('File name is empty.');
-      return false;
+    const { valid, validationMessage } = util.validateFileName(fileName, 'File');
+    if (fileNameValidationMessage !== validationMessage) {
+      setFileNameValidationMessage(validationMessage);
     }
-
-    if (fileName.length > 255) {
-      setFileNameErrorMessage('File name is too long (limit is 255 characters).');
-      return false;
-    }
-
-    if (fileName.includes('/') || fileName.includes('\0')) {
-      setFileNameErrorMessage("File name cannot contain '/' character.");
-      return false;
-    }
-
-    if (fileNameErrorMessage) {
-      setFileNameErrorMessage('');
-    }
-    return true;
+    return valid;
   }
 
   const onFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +39,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
 
     const fileName = e.target.value;
     setFileName(fileName);
-    if (fileNameErrorMessage) {
+    if (fileNameValidationMessage) {
       validateFileName(fileName);
     }
   }
@@ -68,7 +54,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
 
   const onDownloadRemotely = (e: { preventDefault: () => void }) => {
     e.preventDefault();
-    
+
     const url = pendingDownload.finalUrl || pendingDownload.url;
     if (!url || !connection.client) { // shouldn't happen
       setErrorMessage('Failed to resolve the file URL.');
@@ -112,7 +98,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
   );
 
   const remoteSettingsDisabled = !credentials || connection.connecting || loading;
-  const remoteDownloadButtonDisabled = remoteSettingsDisabled || fileNameErrorMessage.length > 0;
+  const remoteDownloadButtonDisabled = remoteSettingsDisabled || fileNameValidationMessage.length > 0;
   const downloadRemotelyButton = buildDownloadRemotelyButton(credentials, connection, remoteDownloadButtonDisabled, onDownloadRemotely);
 
   return (
@@ -128,7 +114,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
       localSettingsDisabled={loading}
       onSubmit={onDownloadRemotely}
       errorMessage={errorMessage}
-      fileNameErrorMessage={fileNameErrorMessage}
+      fileNameErrorMessage={fileNameValidationMessage}
       />
   )
 }
@@ -183,7 +169,7 @@ function buildDefaultFileName(pendingDownload: PendingDownload) {
 
   const url = pendingDownload.finalUrl || pendingDownload.url;
   if (url) {
-    return resolveFileNameFromURL(url);
+    return util.resolveFileNameFromURL(url);
   }
 
   return '';

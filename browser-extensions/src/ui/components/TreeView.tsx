@@ -25,6 +25,7 @@ interface FolderProps extends React.ComponentProps<typeof Accordion> {
   onFolderClick: MouseEventHandler<HTMLDivElement>
   rightIcon: React.ReactNode
   errorMessage?: string
+  validationError?: boolean
 }
 
 const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
@@ -38,6 +39,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
     rightIcon,
     errorMessage,
     className,
+    validationError = false,
     loading,
     ...otherProps
   }: FolderProps,
@@ -53,14 +55,14 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
         <div
           className={SubframeUtils.twClassNames(
             "flex w-full items-center gap-2 rounded-md px-3 py-2",
-            { "bg-brand-100": selected }
+            { "bg-brand-100": selected, "border border-error-600": validationError }
           )}
           onClick={onFolderClick}
         >
           {icon ? (
             <SubframeCore.IconWrapper className={SubframeUtils.twClassNames(
                 "text-body font-body text-default-font",
-                { "text-brand-700": selected }
+                { "text-brand-700": selected, "text-error-600": validationError }
             )}>
               {icon}
             </SubframeCore.IconWrapper>
@@ -71,7 +73,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
             {errorMessage && <ErrorIcon text={errorMessage} />}
           </div>
           {rightIcon}
-          <Accordion.Chevron />
+          <Accordion.Chevron className={validationError ? 'text-error-600' : ''} />
         </div>
       }
       open={open}

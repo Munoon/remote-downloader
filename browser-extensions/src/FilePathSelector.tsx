@@ -1,9 +1,11 @@
 import { useState, useEffect, MouseEventHandler, useContext, FormEventHandler, ChangeEventHandler } from 'react';
 import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
 import * as SubframeUtils from "./ui/utils";
-import { arrayEquals, copyAndReplace } from "./util";
+import { arrayEquals, copyAndReplace, validateFileName } from "./util";
 import { TreeView } from "./ui";
 import { ConnectionContext, DownloadFilePathContext, UserCredentialsContext } from './context';
+import { Tooltip } from "@subframe/core";
+import { Tooltip as MessageTooltip } from "./ui/components/Tooltip";
 
 type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
 type FileStructure = FolderStructure | { type: 'file', id: string, name: string };
@@ -143,50 +145,86 @@ function EditingStructureFolder({ id, prefixPath, setChildren }: {
   setChildren: (id: string, child: FileStructure) => void
 }) {
   const [folderName, setFolderName] = useState('');
+  const [validationMessage, setValidationMessage] = useState('');
   const { setFilePath } = useContext(DownloadFilePathContext);
+
+  function validateName(name: string): boolean {
+    const validationResult = validateFileName(name, 'Folder');
+    if (validationResult.validationMessage !== validationMessage) {
+      setValidationMessage(validationResult.validationMessage);
+    }
+    return validationResult.valid;
+  }
 
   const onSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
-    setChildren(id, { type: 'folder', id, name: folderName, editing: false, virtual: true });
-    setFilePath([...prefixPath, folderName]);
+    
+    if (validateName(folderName)) {
+      setChildren(id, { type: 'folder', id, name: folderName, editing: false, virtual: true });
+      setFilePath([...prefixPath, folderName]);
+    }
   };
 
   const onFileNameChange: ChangeEventHandler<HTMLInputElement> = (e) => {
     e.preventDefault();
-    setFolderName(e.target.value);
+
+    const folderName = e.target.value;
+    setFolderName(folderName);
+    if (validationMessage) {
+      validateName(folderName);
+    }
   };
 
   const label = (
-    <form className='w-full h-full border-none bg-transparent outline-none' onSubmit={onSubmit}>
-      <input
-        autoFocus
-        name='folderName'
-        value={folderName}
-        onChange={onFileNameChange}
-        className={SubframeUtils.twClassNames(
-          "group/b0d608f7 h-full w-full border-none bg-transparent text-body font-body text-default-font outline-none placeholder:text-neutral-400"
-        )}
-        placeholder='Folder name'
-        />
-    </form>
+    <input
+      autoFocus
+      name='fieldName'
+      value={folderName}
+      onChange={onFileNameChange}
+      onKeyDown={e => e.key === 'Enter' && onSubmit(e)}
+      className={SubframeUtils.twClassNames(
+        "group/b0d608f7 h-full w-full border-none bg-transparent text-body font-body text-default-font outline-none placeholder:text-neutral-400"
+      )}
+      placeholder='Folder name'
+      />
   );
 
   const rightIcon = (
     <FeatherCheck
-      className={SubframeUtils.twClassNames("text-body font-body text-default-font")}
+      className={SubframeUtils.twClassNames(
+        "text-body font-body text-default-font",
+        { 'text-error-600': validationMessage.length > 0 }
+      )}
       onClick={onSubmit}
       />
   );
 
-  return (
-    <TreeView.Folder
-      label={label}
-      selected={false}
-      open={false}
-      onFolderClick={e => {}}
-      loading={false}
-      rightIcon={rightIcon}
-      />
+  return (    
+    <Tooltip.Provider>
+      <Tooltip.Root open={validationMessage.length > 0}>
+        <Tooltip.Trigger className='w-full' type='button' onClick={e => e.preventDefault()}>
+          <TreeView.Folder
+            label={label}
+            selected={false}
+            open={false}
+            onFolderClick={e => {}}
+            loading={false}
+            rightIcon={rightIcon}
+            validationError={validationMessage.length > 0}
+            />
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="top"
+            align="center"
+            sideOffset={4}
+            asChild={true}
+          >
+            <MessageTooltip>{validationMessage}</MessageTooltip>
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   );
 }
 

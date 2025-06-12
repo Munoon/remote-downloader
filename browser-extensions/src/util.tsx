@@ -76,3 +76,17 @@ export function deleteElement<T>(arr: T[], matcher: (el: T) => boolean) {
   copy.splice(index, 1);
   return copy;
 }
+
+export function validateFileName(fileName: string, objectName: string): { valid: boolean, validationMessage: string } {
+  if (fileName.length === 0) {
+    return { valid: false, validationMessage: objectName + ' name is empty.' };
+  }
+  if (fileName.length > 255) {
+    return { valid: false, validationMessage: objectName + ' name is too long (limit is 255 characters).' };
+  }
+  if (fileName.includes('/') || fileName.includes('\0')) {
+    return { valid: false, validationMessage: objectName + " name cannot contain '/' character." }
+  }
+
+  return { valid: true, validationMessage: '' };
+}
