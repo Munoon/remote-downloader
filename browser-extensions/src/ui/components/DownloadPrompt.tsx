@@ -15,6 +15,7 @@ import { Button } from "./Button";
 import { FeatherDownload } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
 import { IconButton } from "./IconButton";
+import { ErrorMessage } from "./ErrorMessage";
 
 interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLFormElement> {
   className?: string;
@@ -27,6 +28,7 @@ interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLFormElement> 
   downloadRemotelyButtonElement: React.ReactNode;
   remoteSettingsDisabled: boolean;
   localSettingsDisabled: boolean;
+  errorMessage: string;
 }
 
 const DownloadPromptRoot = React.forwardRef<
@@ -40,6 +42,7 @@ const DownloadPromptRoot = React.forwardRef<
     onFileNameChange,
     onDownloadLocally,
     onDelete,
+    errorMessage,
     filePathElement,
     downloadRemotelyButtonElement,
     remoteSettingsDisabled,
@@ -79,9 +82,8 @@ const DownloadPromptRoot = React.forwardRef<
             {filePathElement}
           </div>
         </label>
-
-        
       </div>
+      {errorMessage && <ErrorMessage text={errorMessage} />}
       <div className="flex w-full items-center justify-between">
         <IconButton
           variant="destructive-tertiary"

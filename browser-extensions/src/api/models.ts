@@ -25,3 +25,8 @@ interface ListFoldersResponse {
   canDownload: boolean
   files: ListFile[]
 }
+
+interface ServerError {
+  type: 'UNKNOWN' | 'UNKNOWN_COMMAND' | 'FAILED_TO_DOWNLOAD' | 'NOT_FOUND' | string;
+  message: string
+}

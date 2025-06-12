@@ -19,7 +19,7 @@ export default class WebSocketClient {
   public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
   private messageId: number
   private messageHandlers: {
-    [key: number]: { resolve: (msg: Message) => void, reject: (msg: Message) => void }
+    [key: number]: { resolve: (msg: Message) => void, reject: (msg: any) => void }
   }
 
   constructor(url: string, handlers: { onOpen: () => void, onClose: () => void, onError: () => void }) {
@@ -62,7 +62,7 @@ export default class WebSocketClient {
     if (handler) {
       const body = message.body ? JSON.parse(message.body) : null;
       if (message.command === COMMANDS.ERROR) {
-        handler.reject({ ...message, body })
+        handler.reject(body);
       } else {
         handler.resolve({ ...message, body });
       }
@@ -74,7 +74,7 @@ export default class WebSocketClient {
     const id = ++this.messageId;
 
     let promiseResolve: (val: Message) => void;
-    let promiseReject: (val: Message) => void;
+    let promiseReject: (val: any) => void;
     const promise = new Promise<Message>((resolve, reject) => {
       promiseResolve = resolve;
       promiseReject = reject;

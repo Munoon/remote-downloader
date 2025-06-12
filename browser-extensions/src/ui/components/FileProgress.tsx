@@ -16,6 +16,7 @@ import { FeatherPause } from "@subframe/core";
 import { FeatherPlay } from "@subframe/core";
 import { FeatherTrash } from "@subframe/core";
 import { Progress } from "./Progress";
+import ErrorIcon from "./ErrorIcon";
 
 interface FileProgressRootProps extends React.HTMLAttributes<HTMLDivElement> {
   fileName?: React.ReactNode;
@@ -28,6 +29,7 @@ interface FileProgressRootProps extends React.HTMLAttributes<HTMLDivElement> {
   onPauseHook?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onContinueHook?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   buttonsDisabled: boolean;
+  errorMessage?: string;
 }
 
 const FileProgressRoot = React.forwardRef<HTMLElement, FileProgressRootProps>(
@@ -43,6 +45,7 @@ const FileProgressRoot = React.forwardRef<HTMLElement, FileProgressRootProps>(
       onPauseHook = (e) => e.preventDefault(),
       onContinueHook = (e) => e.preventDefault(),
       buttonsDisabled,
+      errorMessage,
       ...otherProps
     }: FileProgressRootProps,
     ref
@@ -65,6 +68,8 @@ const FileProgressRoot = React.forwardRef<HTMLElement, FileProgressRootProps>(
               flex: variant === "downloaded",
             })}
           >
+            {errorMessage && <ErrorIcon text={errorMessage} />}
+
             {variant === 'downloading' && downloadSpeed && <Badge variant="neutral">{downloadSpeed}</Badge>}
             {variant === 'downloading' && <IconButton size="small" icon={<FeatherPause />} onClick={onPauseHook} disabled={buttonsDisabled} />}
 

@@ -12,6 +12,7 @@ import { Loader } from "./ui/components/Loader";
 export default function PendingDownloadComponent({ pendingDownload }: { pendingDownload: PendingDownload }) {
   const [fileName, setFileName] = useState(buildDefaultFileName(pendingDownload));
   const [filePath, setFilePath] = useState<string[]>(['Root']);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const historyFilesContext = useContext(HistoryFilesContext);
   const { setPendingDownloads } = useContext(PendingDownloadContext);
@@ -46,6 +47,9 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
     }
 
     setLoading(true);
+    if (errorMessage) {
+      setErrorMessage('');
+    }
 
     const path = filePath.length === 1 ? undefined : filePath.slice(1).join('/');
     connection.client.downloadFile(url, fileName, path)
@@ -54,7 +58,11 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
 
         browserClient.removePendingDownload(pendingDownload)
           .then(pendingDownloads => setPendingDownloads(pendingDownloads));
-      });
+      })
+      .catch((error: ServerError) => {
+        setLoading(false);
+        setErrorMessage(error.message);
+      })
   }
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -85,6 +93,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
       remoteSettingsDisabled={remoteSettingsDisabled}
       localSettingsDisabled={loading}
       onSubmit={onDownloadRemotely}
+      errorMessage={errorMessage}
       />
   )
 }

@@ -8,25 +8,33 @@ import PendingDownloadComponent from "./PendingDownload";
 import { LoadingFileProgress } from "./ui/components/LoadingFileProgress";
 import browserClient, { PendingDownload } from "./browser_client";
 import { NoDownloads } from "./ui/components/NoDownloads";
+import { ErrorMessage } from "./ui/components/ErrorMessage";
 
 function Downloads() {
-  const { connected, connecting, client } = useContext(ConnectionContext);
+  const { connected, client } = useContext(ConnectionContext);
   const { credentials } = useContext(UserCredentialsContext);
   const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
   const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (connected && !files && client) {
       client.getFilesHistory(0, 20)
-        .then(files => setFiles(files.content));
-    } else if (!credentials && files) {
-      setFiles(undefined);
+        .then(files => setFiles(files.content))
+        .catch((error: ServerError) => setErrorMessage(error.message));
+    } else if (!credentials) {
+      if (files) {
+        setFiles(undefined);
+      }
+      if (errorMessage) {
+        setErrorMessage('');
+      }
     }
   }, [connected, client, credentials]);
 
   useEffect(() => {
     browserClient.getPendingDownloads()
-      .then(downloads => setPendingDownloads(downloads));
+      .then(downloads => setPendingDownloads(downloads))
   }, []);
 
   const context = {
@@ -55,10 +63,11 @@ function Downloads() {
       </PendingDownloadContext.Provider>
 
       {files && files.map(file => mapFile(file))}
-      {connecting && !files && <LoadingFileProgress />}
-      {files && files.length === 0 && pendingDownloads && pendingDownloads.length === 0 && connected && credentials && (
+      {!files && !errorMessage && credentials && <LoadingFileProgress />}
+      {files && files.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && credentials && (
         <NoDownloads />
       )}
+      {errorMessage && <ErrorMessage text={errorMessage} />}
     </HistoryFilesContext.Provider>
   );
 }
@@ -75,15 +84,24 @@ function mapFile(file: HistoryFile) {
 
 function DownloadingFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const [loading, setLoading] = useState(false);
   const { client } = useContext(ConnectionContext);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
       client.deleteFile(file.id)
-        .then(() => filesContext.deleteFile(file.id));  
+        .then(() => filesContext.deleteFile(file.id))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
     }
   };
 
@@ -91,8 +109,16 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
     e.preventDefault();
     if (client) {
       setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
       client.stopDownloading(file.id)
-        .then(file => filesContext.updateFile(file));
+        .then(file => filesContext.updateFile(file))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
     }
   };
 
@@ -113,21 +139,31 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
       onPauseHook={onPause}
       key={file.id}
       buttonsDisabled={loading}
+      errorMessage={errorMessage}
       />
   );
 }
 
 function PausedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const [loading, setLoading] = useState(false);
   const { client } = useContext(ConnectionContext);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
       client.deleteFile(file.id)
-        .then(() => filesContext.deleteFile(file.id));
+        .then(() => filesContext.deleteFile(file.id))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
     }
   };
 
@@ -135,8 +171,16 @@ function PausedFile({ file }: { file: HistoryFile }) {
     e.preventDefault();
     if (client) {
       setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
       client.resumeDownloading(file.id)
-        .then(file => filesContext.updateFile(file));
+        .then(file => filesContext.updateFile(file))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
     }
   };
 
@@ -149,21 +193,31 @@ function PausedFile({ file }: { file: HistoryFile }) {
       key={file.id}
       buttonsDisabled={loading}
       progress={(file.downloadedBytes / file.totalBytes) * 100}
+      errorMessage={errorMessage}
       />
   );
 }
 
 function DownloadedFile({ file }: { file: HistoryFile }) {
   const filesContext = useContext(HistoryFilesContext);
-  const [loading, setLoading] = useState(false);
   const { client } = useContext(ConnectionContext);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
       client.deleteFile(file.id)
-        .then(() => filesContext.deleteFile(file.id));
+        .then(() => filesContext.deleteFile(file.id))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
     }
   };
 
@@ -174,6 +228,7 @@ function DownloadedFile({ file }: { file: HistoryFile }) {
       onDeleteHook={onDelete}
       key={file.id}
       buttonsDisabled={loading}
+      errorMessage={errorMessage}
       />
   )
 }

@@ -12,6 +12,7 @@ import { FeatherFolder } from "@subframe/core";
 import { Accordion } from "./Accordion";
 import { FeatherFile } from "@subframe/core";
 import { Loader } from "@/ui/components/Loader";
+import ErrorIcon from "./ErrorIcon";
 
 interface FolderProps extends React.ComponentProps<typeof Accordion> {
   children?: React.ReactNode;
@@ -23,6 +24,7 @@ interface FolderProps extends React.ComponentProps<typeof Accordion> {
   className?: string;
   onFolderClick: MouseEventHandler<HTMLDivElement>
   rightIcon: React.ReactNode
+  errorMessage?: string
 }
 
 const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
@@ -34,6 +36,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
     open = false,
     onFolderClick,
     rightIcon,
+    errorMessage,
     className,
     loading,
     ...otherProps
@@ -65,6 +68,7 @@ const Folder = React.forwardRef<HTMLElement, FolderProps>(function Folder(
           {label}
           <div className="basis-0 grow flex-[0_0_auto] inline-flex items-center">
             {loading && <Loader size="small" />}
+            {errorMessage && <ErrorIcon text={errorMessage} />}
           </div>
           {rightIcon}
           <Accordion.Chevron />

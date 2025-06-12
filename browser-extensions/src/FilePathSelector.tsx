@@ -8,38 +8,43 @@ import { ConnectionContext, DownloadFilePathContext, UserCredentialsContext } fr
 type FolderStructure = { type: 'folder', id: string, name: string, children?: FileStructure[], editing: boolean, virtual: boolean }
 type FileStructure = FolderStructure | { type: 'file', id: string, name: string };
 
-export default function FilePathSelector() {
-  const [structure, setStructure] = useState<FileStructure[] | null>(null);
-  const { connected, client } = useContext(ConnectionContext);
-  const { credentials } = useContext(UserCredentialsContext);
-
-  useEffect(() => {
-    if (connected && !structure && client) {
-      client.listFolders(null)
-        .then(resp => setStructure(mapFilesToStrucutre(resp.files)));
-    } else if (!credentials && structure) {
-      setStructure(null);
-    }
-  }, [connected, client, credentials]);
- 
-  return (
-    <TreeView>
-      <StructureFolder
-        key={structure ? 1 : 0} // hack: without this key react wouldn't re-render component after fetching the structure
-        structure={{ type: 'folder', name: 'Root', id: 'root', children: structure || [], editing: false, virtual: true }}
-        prefixPath={[]}
-        />
-    </TreeView>
-  )
-}
+const FilePathSelector = () => (
+  <TreeView>
+    <StructureFolder
+      structure={{ type: 'folder', name: 'Root', id: 'root', children: undefined, editing: false, virtual: false }}
+      prefixPath={[]}
+      />
+  </TreeView>
+);
+export default FilePathSelector;
 
 function StructureFolder({ structure, prefixPath } : { structure: FolderStructure, prefixPath: string[] }) {
+  const { credentials } = useContext(UserCredentialsContext);
+  const { filePath: selectedPath, setFilePath } = useContext(DownloadFilePathContext);
+  const { connected, client } = useContext(ConnectionContext);
   const [open, setOpen] = useState(false);
   const [children, setChildren] = useState(structure.children);
   const [childrenLoading, setChildrenLoading] = useState(false);
-  const { filePath: selectedPath, setFilePath } = useContext(DownloadFilePathContext);
-  const { connected, client } = useContext(ConnectionContext);
+  const [errorMessage, setErrorMessage] = useState('');
+  
   const folderPath = [...prefixPath, structure.name];
+  const isRoot = arrayEquals(folderPath, ['Root']);
+
+  if (isRoot) {
+    useEffect(() => {
+      if (!credentials) {
+        if (children) {
+          setChildren(undefined);
+        }
+        if (childrenLoading) {
+          setChildrenLoading(false);
+        }
+        if (open) {
+          setOpen(false);
+        }
+      }
+    }, [credentials]);
+  }
 
   const onClick: MouseEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
@@ -51,14 +56,22 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
     
     if (!open && !structure.virtual && children === undefined && !childrenLoading && client) {
       setChildrenLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
 
-      client.listFolders(folderPath.slice(1).join('/'))
+      const url = isRoot ? null : folderPath.slice(1).join('/');
+      client.listFolders(url)
         .then(resp => {
           const children = mapFilesToStrucutre(resp.files);
           setChildren(children);
           setChildrenLoading(false);
           setOpen(true);
-        });
+        })
+        .catch((error: ServerError) => {
+          setChildrenLoading(false);
+          setErrorMessage('Failed to load childrens: ' + error.message);
+        })
     } else {
       setOpen(!open);
     }
@@ -117,6 +130,7 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
       onFolderClick={onClick}
       loading={childrenLoading}
       rightIcon={rightIcon}
+      errorMessage={errorMessage}
     >
       {children && children.map(file => renderStructure(file, folderPath, replaceChildren))}
     </TreeView.Folder>
