@@ -1,7 +1,7 @@
 "use client";
 
 import { FileProgress } from "@/ui/components/FileProgress";
-import { useState, useEffect, useContext } from "react";
+import {useState, useEffect, useContext, MouseEventHandler} from "react";
 import { ConnectionContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
 import { buildTimeRemainingMessage, buildSpeedMessage, copyAndReplace, deleteElement } from "./util";
 import PendingDownloadComponent from "./PendingDownload";
@@ -90,7 +90,7 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDelete: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
@@ -107,7 +107,7 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
     }
   };
 
-  const onPause = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onPause: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
@@ -152,7 +152,7 @@ function PausedFile({ file }: { file: HistoryFile }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDelete: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
@@ -169,7 +169,7 @@ function PausedFile({ file }: { file: HistoryFile }) {
     }
   };
 
-  const onContinue = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onContinue: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     if (client) {
       setLoading(true);
@@ -206,7 +206,7 @@ function DownloadedFile({ file }: { file: HistoryFile }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDelete: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     if (client) {
       setLoading(true);

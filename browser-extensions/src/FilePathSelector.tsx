@@ -1,4 +1,4 @@
-import { useState, useEffect, MouseEventHandler, useContext, FormEventHandler, ChangeEventHandler } from 'react';
+import { useState, useEffect, MouseEventHandler, useContext, ChangeEventHandler } from 'react';
 import { FeatherFolderPlus, FeatherCheck } from "@subframe/core";
 import * as SubframeUtils from "./ui/utils";
 import { arrayEquals, copyAndReplace, validateFileName } from "./util";
@@ -65,14 +65,14 @@ function StructureFolder({ structure, prefixPath } : { structure: FolderStructur
       const url = isRoot ? null : folderPath.slice(1).join('/');
       client.listFolders(url)
         .then(resp => {
-          const children = mapFilesToStrucutre(resp.files);
+          const children = mapFilesToStructure(resp.files);
           setChildren(children);
           setChildrenLoading(false);
           setOpen(true);
         })
         .catch((error: ServerError) => {
           setChildrenLoading(false);
-          setErrorMessage('Failed to load childrens: ' + error.message);
+          setErrorMessage('Failed to load children: ' + error.message);
         })
     } else {
       setOpen(!open);
@@ -207,7 +207,7 @@ function EditingStructureFolder({ id, prefixPath, setChildren }: {
             label={label}
             selected={false}
             open={false}
-            onFolderClick={e => {}}
+            onFolderClick={() => {}}
             loading={false}
             rightIcon={rightIcon}
             validationError={validationMessage.length > 0}
@@ -240,9 +240,9 @@ function renderStructure(structure: FileStructure, prefixPath: string[], setChil
   }
 }
 
-function mapFilesToStrucutre(files: ListFile[]): FileStructure[] {
+function mapFilesToStructure(files: ListFile[]): FileStructure[] {
   const result: FileStructure[] = [];
-  for (let file of files) {
+  for (const file of files) {
     if (file.folder) {
       result.push({ type: 'folder', name: file.fileName, id: file.fileName, editing: false, virtual: false })
     } else {

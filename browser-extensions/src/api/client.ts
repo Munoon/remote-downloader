@@ -1,6 +1,3 @@
-import { UserCredentials } from "src/browser_client";
-import { ConnectionContextType } from "src/context";
-
 type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
@@ -16,11 +13,11 @@ const COMMANDS = {
 
 export default class WebSocketClient {
   private readonly socket: WebSocket
-  public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
-  private messageId: number
-  private messageHandlers: {
+  private readonly messageHandlers: {
     [key: number]: { resolve: (msg: Message) => void, reject: (msg: any) => void }
   }
+  public handlers: { onOpen: () => void, onClose: () => void, onError: () => void }
+  private messageId: number
 
   constructor(url: string, handlers: { onOpen: () => void, onClose: () => void, onError: () => void }) {
     this.messageId = 0;
@@ -80,7 +77,7 @@ export default class WebSocketClient {
       promiseReject = reject;
     });
 
-    this.messageHandlers[id] = { resolve: promiseResolve!!, reject: promiseReject!! };
+    this.messageHandlers[id] = { resolve: promiseResolve!, reject: promiseReject! };
 
     const binary = buildBinaryMessage({ id, command, body });
     this.socket.send(binary);

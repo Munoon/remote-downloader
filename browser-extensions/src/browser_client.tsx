@@ -43,7 +43,8 @@ async function getPendingDownloads(): Promise<PendingDownload[]> {
 }
 
 async function getCredentials(): Promise<UserCredentials | undefined> {
-  const credentials = await chrome.storage.local.get(USER_CREDENTIALS_STORAGE_KEY).then((creds?: any) => creds?.userCredentials);
+  const credentials = await chrome.storage.local.get(USER_CREDENTIALS_STORAGE_KEY)
+      .then((credentials?: any) => credentials?.userCredentials);
   return credentials && credentials.address && credentials.username && credentials.passwordEncrypted
     ? credentials
     : undefined;

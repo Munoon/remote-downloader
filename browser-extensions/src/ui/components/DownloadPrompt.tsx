@@ -8,7 +8,7 @@
  * Button — https://app.subframe.com/dd13c78ea6fd/library?component=Button_3b777358-b86b-40af-9327-891efc6826fe
  */
 
-import React from "react";
+import React, {ChangeEventHandler, MouseEventHandler} from "react";
 import * as SubframeUtils from "../utils";
 import { TextField } from "./TextField";
 import { Button } from "./Button";
@@ -21,9 +21,9 @@ interface DownloadPromptRootProps extends React.HTMLAttributes<HTMLFormElement> 
   className?: string;
   fileName: string;
   filePath: string;
-  onFileNameChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onDownloadLocally: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  onDelete: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onFileNameChange: ChangeEventHandler<HTMLInputElement>;
+  onDownloadLocally: MouseEventHandler<HTMLButtonElement>;
+  onDelete: MouseEventHandler<HTMLButtonElement>;
   filePathElement: React.ReactNode;
   downloadRemotelyButtonElement: React.ReactNode;
   remoteSettingsDisabled: boolean;
@@ -67,7 +67,7 @@ const DownloadPromptRoot = React.forwardRef<
           className="h-auto w-full flex-none"
           label="File name"
           helpText={fileNameErrorMessage}
-          error={fileNameErrorMessage ? true : false}
+          error={!!fileNameErrorMessage}
         >
           <TextField.Input value={fileName} onChange={onFileNameChange} disabled={remoteSettingsDisabled} />
         </TextField>

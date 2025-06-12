@@ -8,7 +8,7 @@
  * Progress — https://app.subframe.com/dd13c78ea6fd/library?component=Progress_60964db0-a1bf-428b-b9d5-f34cdf58ea77
  */
 
-import React from "react";
+import React, {MouseEventHandler} from "react";
 import * as SubframeUtils from "../utils";
 import { Badge } from "./Badge";
 import { IconButton } from "./IconButton";
@@ -25,9 +25,9 @@ interface FileProgressRootProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "downloading" | "downloaded" | "paused";
   downloadSpeed?: React.ReactNode;
   className?: string;
-  onDeleteHook: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onPauseHook?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onContinueHook?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onDeleteHook: MouseEventHandler<HTMLButtonElement>;
+  onPauseHook?: MouseEventHandler<HTMLButtonElement>;
+  onContinueHook?: MouseEventHandler<HTMLButtonElement>;
   buttonsDisabled: boolean;
   errorMessage?: string;
 }

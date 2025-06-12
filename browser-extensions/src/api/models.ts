@@ -1,7 +1,3 @@
-type ServerHello = {
-  serverVersion: string
-}
-
 type Page<T> = {
   content: T[]
   totalElements: number

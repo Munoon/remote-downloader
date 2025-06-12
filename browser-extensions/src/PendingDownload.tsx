@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, createContext, MouseEventHandler } from "react";
+import React, { useContext, useEffect, useState, MouseEventHandler } from "react";
 import { DownloadPrompt } from "./ui";
 import * as util from "./util";
 import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
@@ -44,7 +44,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
     }
   }
 
-  const onDownloadLocally = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDownloadLocally: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     setLoading(true);
     browserClient.resumeDownload(pendingDownload);
@@ -84,7 +84,7 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
       })
   }
 
-  const onDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const onDelete: MouseEventHandler<HTMLButtonElement> = (e) => {
     e.preventDefault();
     setLoading(true);
     browserClient.removePendingDownload(pendingDownload)

@@ -21,7 +21,7 @@ export default function LoginCard() {
   const [password, setPassword] = useState('');
 
   const [addressValidation, setAddressValidation] = useState('');
-  const [usernameValidation, setUsernamValidation] = useState('');
+  const [usernameValidation, setUsernameValidation] = useState('');
   const [passwordValidation, setPasswordValidation] = useState('');
 
   function validateAddress(address: string) {
@@ -58,24 +58,24 @@ export default function LoginCard() {
 
   function validateUsername(username: string) {
     if (username.length === 0) {
-      setUsernamValidation('Please, provide a username.');
+      setUsernameValidation('Please, provide a username.');
       return false;
     }
     if (username.length > 255) {
-      setUsernamValidation('Username is too large (max length is 255 symbols).');
+      setUsernameValidation('Username is too large (max length is 255 symbols).');
       return false;
     }
 
     const allowedChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.@';
     for (let i = 0; i < username.length; i++) {
       if (!allowedChars.includes(username[i])) {
-        setUsernamValidation(`Invalid character '${username[i]}'. Only letters, digits, underscore (_), dot (.), and @ are allowed.`);
+        setUsernameValidation(`Invalid character '${username[i]}'. Only letters, digits, underscore (_), dot (.), and @ are allowed.`);
         return false;
       }
     }
 
     if (usernameValidation.length > 0) {
-      setUsernamValidation('');
+      setUsernameValidation('');
     }
     return true;
   }
