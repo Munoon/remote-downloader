@@ -1,5 +1,7 @@
 package io.remotedownloader.model;
 
+import java.util.Objects;
+
 public final class DownloadingFile {
     public static final DownloadingFile[] EMPTY_ARRAY = new DownloadingFile[0];
 
@@ -9,8 +11,10 @@ public final class DownloadingFile {
     public final String ownerUsername;
     public final DownloadingFileStatus status;
     public final long totalBytes;
+
+    // should be used just on the UI
     public volatile long downloadedBytes;
-    public volatile long speedBytesPerSecond;
+    public volatile long speedBytesPerMS;
 
     public DownloadingFile(
             String id,
@@ -20,7 +24,7 @@ public final class DownloadingFile {
             DownloadingFileStatus status,
             long totalBytes,
             long downloadedBytes,
-            long speedBytesPerSecond
+            long speedBytesPerMS
     ) {
         this.id = id;
         this.name = name;
@@ -29,12 +33,12 @@ public final class DownloadingFile {
         this.status = status;
         this.totalBytes = totalBytes;
         this.downloadedBytes = downloadedBytes;
-        this.speedBytesPerSecond = speedBytesPerSecond;
+        this.speedBytesPerMS = speedBytesPerMS;
     }
 
     public DownloadingFile withStatus(DownloadingFileStatus status) {
         return new DownloadingFile(
-                id, name, path, ownerUsername, status, totalBytes, downloadedBytes, speedBytesPerSecond);
+                id, name, path, ownerUsername, status, totalBytes, downloadedBytes, speedBytesPerMS);
     }
 
     @Override
@@ -44,10 +48,9 @@ public final class DownloadingFile {
         }
 
         return totalBytes == that.totalBytes
-               && downloadedBytes == that.downloadedBytes
-               && speedBytesPerSecond == that.speedBytesPerSecond
                && id.equals(that.id)
                && name.equals(that.name)
+               && Objects.equals(path, that.path)
                && ownerUsername.equals(that.ownerUsername)
                && status == that.status;
     }
@@ -56,24 +59,22 @@ public final class DownloadingFile {
     public int hashCode() {
         int result = id.hashCode();
         result = 31 * result + name.hashCode();
+        result = 31 * result + Objects.hashCode(path);
         result = 31 * result + ownerUsername.hashCode();
         result = 31 * result + status.hashCode();
         result = 31 * result + Long.hashCode(totalBytes);
-        result = 31 * result + Long.hashCode(downloadedBytes);
-        result = 31 * result + Long.hashCode(speedBytesPerSecond);
         return result;
     }
 
     @Override
     public String toString() {
-        return "DownloadingFile[" +
-               "id=" + id + ", " +
-               "name=" + name + ", " +
-               "ownerUsername=" + ownerUsername + ", " +
-               "status=" + status + ", " +
-               "totalBytes=" + totalBytes + ", " +
-               "downloadedBytes=" + downloadedBytes + ", " +
-               "speedBytesPerSecond=" + speedBytesPerSecond + ']';
+        return "DownloadingFile{" +
+               "id='" + id + '\'' +
+               ", name='" + name + '\'' +
+               ", path='" + path + '\'' +
+               ", ownerUsername='" + ownerUsername + '\'' +
+               ", status=" + status +
+               ", totalBytes=" + totalBytes +
+               '}';
     }
-
 }

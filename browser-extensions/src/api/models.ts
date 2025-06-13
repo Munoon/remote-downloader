@@ -9,7 +9,7 @@ type HistoryFile = {
   status: 'DOWNLOADING' | 'DOWNLOADED' | 'PAUSED'
   totalBytes: number
   downloadedBytes: number
-  speedBytesPerSecond: number
+  speedBytesPerMS: number
 }
 
 interface ListFile {

@@ -10,11 +10,12 @@ export function buildTimeRemainingMessage(secondsRemaining: number): string {
   }
 }
 
-export function buildSpeedMessage(bytesPerSecond: number): string | null {
-  if (bytesPerSecond === 0) {
+export function buildSpeedMessage(bytesPerMillisecond: number): string | null {
+  if (bytesPerMillisecond === 0) {
     return null;
   }
 
+  const bytesPerSecond = bytesPerMillisecond * 1000;
   if (bytesPerSecond < 1024) {
     return `${Math.floor(bytesPerSecond)} B/s`;
   } else if (bytesPerSecond < 1024 ** 2) {

@@ -9,7 +9,7 @@ public record DownloadFileDTO(
         DownloadingFileStatus status,
         long totalBytes,
         long downloadedBytes,
-        long speedBytesPerSecond
+        long speedBytesPerMS
 ) {
     public DownloadFileDTO(DownloadingFile file) {
         this(
@@ -18,7 +18,7 @@ public record DownloadFileDTO(
                 file.status,
                 file.totalBytes,
                 file.downloadedBytes,
-                file.speedBytesPerSecond
+                file.speedBytesPerMS
         );
     }
 }

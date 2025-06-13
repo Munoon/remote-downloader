@@ -125,15 +125,15 @@ function DownloadingFile({ file }: { file: HistoryFile }) {
   };
 
   let subtitle;
-  if (file.totalBytes > 0 && file.speedBytesPerSecond !== 0) {
-    const secondsRemaining = (file.totalBytes - file.downloadedBytes) / file.speedBytesPerSecond;
+  if (file.totalBytes > 0 && file.speedBytesPerMS !== 0) {
+    const secondsRemaining = (file.totalBytes - file.downloadedBytes) / file.speedBytesPerMS / 1000;
     subtitle = buildTimeRemainingMessage(secondsRemaining);
   }
 
   return (
     <FileProgress
       fileName={file.name}
-      downloadSpeed={buildSpeedMessage(file.speedBytesPerSecond)}
+      downloadSpeed={buildSpeedMessage(file.speedBytesPerMS)}
       subtitle={subtitle}
       progress={(file.downloadedBytes / file.totalBytes) * 100}
       variant="downloading"

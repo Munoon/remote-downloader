@@ -33,6 +33,7 @@ public class FileDownloader implements AsyncHandler<Object> {
     private final FilesStorageDao filesStorageDao;
 
     private DownloadingFile file;
+    private long previousChunkTime;
 
     public FileDownloader(ChannelHandlerContext ctx,
                           StringMessage msg,
@@ -92,7 +93,14 @@ public class FileDownloader implements AsyncHandler<Object> {
         try {
             ByteBuffer byteBuffer = bodyPart.getBodyByteBuffer();
             long size = byteBuffer.remaining();
+            if (size == 0) {
+                return State.CONTINUE;
+            }
+
             fileChannel.write(byteBuffer);
+
+            long now = System.nanoTime();
+
             if (log.isTraceEnabled()) {
                 log.trace("Body part received for file {} [size = {}]", req.fileName(), size);
             }
@@ -101,7 +109,13 @@ public class FileDownloader implements AsyncHandler<Object> {
                 // as long, as we are writing to this field only from a single thread - this is fine
                 //noinspection NonAtomicOperationOnVolatileField
                 file.downloadedBytes += size;
+
+                log.info("prev = {}, now = {}, size = {}", previousChunkTime, now, size);
+                long durationMS = Math.max(now - previousChunkTime, 1_000_000) / 1_000_000;
+                file.speedBytesPerMS = size / durationMS;
             }
+
+            previousChunkTime = now;
         } catch (IOException e) {
             log.warn("Failed to write to a file {}", filePath);
             return State.ABORT;
