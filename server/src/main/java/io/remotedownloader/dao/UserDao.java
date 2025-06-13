@@ -1,5 +1,6 @@
 package io.remotedownloader.dao;
 
+import io.netty.buffer.ByteBufUtil;
 import io.remotedownloader.model.User;
 
 import java.nio.charset.StandardCharsets;
@@ -37,7 +38,7 @@ public class UserDao {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             digest.update(password.getBytes(StandardCharsets.UTF_8));
             byte[] byteData = digest.digest(username.getBytes(StandardCharsets.UTF_8));
-            String passwordEncrypted = Base64.getEncoder().encodeToString(byteData);
+            String passwordEncrypted = ByteBufUtil.hexDump(byteData);
 
             User user = new User(
                     username,

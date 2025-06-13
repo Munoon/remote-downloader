@@ -82,7 +82,7 @@ public class FileDownloader implements AsyncHandler<Object> {
                 0, 0);
         this.file = file;
 
-        filesStorageDao.saveFile(file);
+        filesStorageDao.addFile(file);
         ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
         return State.CONTINUE;
     }
@@ -93,6 +93,9 @@ public class FileDownloader implements AsyncHandler<Object> {
             ByteBuffer byteBuffer = bodyPart.getBodyByteBuffer();
             long size = byteBuffer.remaining();
             fileChannel.write(byteBuffer);
+            if (log.isTraceEnabled()) {
+                log.trace("Body part received for file {} [size = {}]", req.fileName(), size);
+            }
 
             if (file != null) {
                 // as long, as we are writing to this field only from a single thread - this is fine
@@ -126,7 +129,7 @@ public class FileDownloader implements AsyncHandler<Object> {
             log.warn("Failed to close a file", e);
         }
         if (file != null) {
-            filesStorageDao.saveFile(file.withStatus(status));
+            filesStorageDao.updateFile(file.withStatus(status));
         }
     }
 

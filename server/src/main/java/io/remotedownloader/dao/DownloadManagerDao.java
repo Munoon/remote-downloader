@@ -19,7 +19,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -48,8 +47,7 @@ public class DownloadManagerDao {
 
         String fileId = UUID.randomUUID().toString();
         ListenableFuture<Object> future = asyncHttpClient.prepareGet(req.url())
-                .setRequestTimeout(Duration.ofSeconds(5))
-                .execute(new FileDownloader(ctx, msg, username, fileId, req, filePath, fileChannel, filesStorageDao));
+                .execute(new FileDownloader(ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao));
         downloadingFiles.put(fileId, future);
 
         future.addListener(() -> downloadingFiles.remove(fileId), null);

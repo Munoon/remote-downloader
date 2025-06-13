@@ -29,7 +29,7 @@ public class StopDownloadingLogic {
         downloadManagerDao.stopDownloading(file.id);
 
         DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.PAUSED);
-        filesStorageDao.saveFile(updatedFile);
+        filesStorageDao.updateFile(updatedFile);
 
         return StringMessage.json(req, updatedFile);
     }

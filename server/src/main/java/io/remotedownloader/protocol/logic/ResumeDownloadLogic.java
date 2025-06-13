@@ -26,7 +26,7 @@ public class ResumeDownloadLogic {
         // TODO actually resume the downloading
 
         DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.DOWNLOADING);
-        filesStorageDao.saveFile(updatedFile);
+        filesStorageDao.updateFile(updatedFile);
 
         return StringMessage.json(req, updatedFile);
     }
