@@ -13,9 +13,9 @@ public class DownloadFileLogic {
         this.downloadManagerDao = holder.downloadManagerDao;
     }
 
-    public StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg) {
+    public StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg, String username) {
         DownloadUrlRequestDTO req = msg.parseJson(DownloadUrlRequestDTO.class);
-        downloadManagerDao.download(ctx, msg, req.url(), req.fileName(), req.path());
+        downloadManagerDao.download(ctx, msg, req, username);
         return null;
     }
 }

@@ -16,7 +16,7 @@ public class MessageHandler extends BaseMessageHandler {
     @Override
     StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg) {
         return switch (msg.command()) {
-            case ProtocolCommands.DOWNLOAD_URL -> logicHolder.downloadFileLogic.handleRequest(ctx, msg);
+            case ProtocolCommands.DOWNLOAD_URL -> logicHolder.downloadFileLogic.handleRequest(ctx, msg, username);
             case ProtocolCommands.GET_FILES_HISTORY -> logicHolder.getFilesHistoryLogic.handleRequest(msg, username);
             case ProtocolCommands.STOP_DOWNLOADING -> logicHolder.stopDownloadingLogic.handleRequest(msg, username);
             case ProtocolCommands.DELETE_FILE -> logicHolder.deleteFileLogic.handleRequest(msg, username);

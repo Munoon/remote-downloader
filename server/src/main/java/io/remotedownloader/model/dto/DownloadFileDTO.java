@@ -13,12 +13,12 @@ public record DownloadFileDTO(
 ) {
     public DownloadFileDTO(DownloadingFile file) {
         this(
-                file.id(),
-                file.name(),
-                file.status(),
-                file.totalBytes(),
-                file.downloadedBytes(),
-                file.speedBytesPerSecond()
+                file.id,
+                file.name,
+                file.status,
+                file.totalBytes,
+                file.downloadedBytes,
+                file.speedBytesPerSecond
         );
     }
 }

@@ -21,12 +21,12 @@ public class FilesStorageDao {
     }
 
     public void saveFile(DownloadingFile file) {
-        downloadingFiles.put(file.id(), file);
+        downloadingFiles.put(file.id, file);
         // TODO update user files
     }
 
     public void deleteById(DownloadingFile file) {
-        downloadingFiles.remove(file.id());
+        downloadingFiles.remove(file.id);
         // TODO remove from user fles
     }
 }

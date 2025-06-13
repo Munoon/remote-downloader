@@ -16,8 +16,8 @@ public class Holder {
     public Holder() {
         this.serverProperties = new ServerProperties();
         this.asyncHttpClient = new DefaultAsyncHttpClient();
-        this.downloadManagerDao = new DownloadManagerDao(serverProperties, asyncHttpClient);
-        this.userDao = new UserDao();
         this.filesStorageDao = new FilesStorageDao();
+        this.downloadManagerDao = new DownloadManagerDao(serverProperties, asyncHttpClient, filesStorageDao);
+        this.userDao = new UserDao();
     }
 }

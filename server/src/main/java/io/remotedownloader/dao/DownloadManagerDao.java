@@ -1,11 +1,10 @@
 package io.remotedownloader.dao;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.remotedownloader.FileDownloader;
 import io.remotedownloader.ServerProperties;
-import io.remotedownloader.model.DownloadingFileStatus;
-import io.remotedownloader.model.dto.DownloadFileDTO;
+import io.remotedownloader.model.DownloadingFile;
+import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.ListFileDTO;
 import io.remotedownloader.model.dto.ListFoldersResponseDTO;
@@ -13,12 +12,9 @@ import io.remotedownloader.protocol.ErrorException;
 import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.HttpResponseBodyPart;
-import org.asynchttpclient.HttpResponseStatus;
+import org.asynchttpclient.ListenableFuture;
 
-import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,93 +23,52 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 public class DownloadManagerDao {
     private static final Logger log = LogManager.getLogger(DownloadManagerDao.class);
+    private final ConcurrentMap<String, ListenableFuture<?>> downloadingFiles = new ConcurrentHashMap<>();
     private final ServerProperties properties;
     private final AsyncHttpClient asyncHttpClient;
+    private final FilesStorageDao filesStorageDao;
 
-    public DownloadManagerDao(ServerProperties properties, AsyncHttpClient asyncHttpClient) {
+    public DownloadManagerDao(ServerProperties properties,
+                              AsyncHttpClient asyncHttpClient,
+                              FilesStorageDao filesStorageDao) {
         this.properties = properties;
         this.asyncHttpClient = asyncHttpClient;
+        this.filesStorageDao = filesStorageDao;
     }
 
-    public void download(ChannelHandlerContext ctx, StringMessage req, String url, String fileName, String path) {
-        Path filePath = resolveFilePath(path, fileName);
+    public void download(ChannelHandlerContext ctx, StringMessage msg, DownloadUrlRequestDTO req, String username) {
+        Path filePath = resolveFilePath(req.path(), req.fileName());
         SeekableByteChannel fileChannel = createFileChannel(filePath);
 
-        asyncHttpClient.prepareGet(url)
+        String fileId = UUID.randomUUID().toString();
+        ListenableFuture<Object> future = asyncHttpClient.prepareGet(req.url())
                 .setRequestTimeout(Duration.ofSeconds(5))
-                .execute(new AsyncHandler<>() {
-                    @Override
-                    public State onStatusReceived(HttpResponseStatus responseStatus) {
-                        int statusCode = responseStatus.getStatusCode();
-                        if (statusCode >= 200 && statusCode < 300) {
-                            log.info("Start downloading '{}' to '{}'", url, filePath);
-                            return State.CONTINUE;
-                        } else {
-                            log.info("Received {} response code from server when trying to download {}. Aborting...",
-                                    statusCode, url);
-                            StringMessage response = StringMessage.error(
-                                    req,
-                                    Error.ErrorTypes.FAILED_TO_DOWNLOAD,
-                                    "Server respond with an error.");
-                            ctx.writeAndFlush(response);
-                            return State.ABORT;
-                        }
-                    }
+                .execute(new FileDownloader(ctx, msg, username, fileId, req, filePath, fileChannel, filesStorageDao));
+        downloadingFiles.put(fileId, future);
 
-                    @Override
-                    public State onBodyPartReceived(HttpResponseBodyPart bodyPart) {
-                        try {
-                            fileChannel.write(bodyPart.getBodyByteBuffer());
-                        } catch (IOException e) {
-                            log.warn("Failed to write to a file {}", filePath);
-                            return State.ABORT;
-                        }
-                        return State.CONTINUE;
-                    }
+        future.addListener(() -> downloadingFiles.remove(fileId), null);
+    }
 
-                    @Override
-                    public State onHeadersReceived(HttpHeaders headers) {
-                        long contentLength;
-                        try {
-                            String contentLengthValue = headers.get(HttpHeaderNames.CONTENT_LENGTH);
-                            contentLength = Long.parseLong(contentLengthValue);
-                        } catch (Exception e) {
-                            log.warn("Failed to get file content length", e);
-                            contentLength = -1;
-                        }
+    public void stopDownloading(String fileId) {
+        ListenableFuture<?> future = downloadingFiles.get(fileId);
+        if (future != null) {
+            future.done();
+        }
+    }
 
-                        DownloadFileDTO file = new DownloadFileDTO(
-                                UUID.randomUUID().toString(),
-                                fileName,
-                                DownloadingFileStatus.DOWNLOADING,
-                                contentLength,
-                                0, 0);
-                        ctx.writeAndFlush(StringMessage.json(req, file));
-
-                        return State.CONTINUE;
-                    }
-
-                    @Override
-                    public Object onCompleted() throws Exception {
-                        log.info("File '{}' has been downloaded", filePath);
-                        fileChannel.close();
-                        return null;
-                    }
-
-                    @Override
-                    public void onThrowable(Throwable t) {
-                        log.warn("Failed to download '{}'", url, t);
-                        try {
-                            fileChannel.close();
-                        } catch (Exception e) {
-                            log.warn("Failed to close a file", e);
-                        }
-                    }
-                });
+    public void deleteFile(DownloadingFile file) {
+        Path path = resolveFilePath(file.name, file.path);
+        try {
+            Files.deleteIfExists(path);
+        } catch (Exception e) {
+            log.warn("Failed to delete the file from the server", e);
+        }
     }
 
     public ListFoldersResponseDTO listFolders(String path) {

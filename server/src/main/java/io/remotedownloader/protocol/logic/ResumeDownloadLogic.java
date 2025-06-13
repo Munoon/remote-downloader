@@ -19,12 +19,15 @@ public class ResumeDownloadLogic {
         String fileId = req.parseJson(FileIdRequestDTO.class).fileId();
 
         DownloadingFile file = filesStorageDao.getById(fileId);
-        if (file == null || !username.equals(file.ownerUsername())) {
+        if (file == null || !username.equals(file.ownerUsername)) {
             return StringMessage.error(req, Error.ErrorTypes.NOT_FOUND, "File is not found.");
         }
 
+        // TODO actually resume the downloading
+
         DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.DOWNLOADING);
         filesStorageDao.saveFile(updatedFile);
+
         return StringMessage.json(req, updatedFile);
     }
 }
