@@ -1,4 +1,4 @@
-package io.remotedownloader.http;
+package io.remotedownloader.server;
 
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -21,5 +21,10 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpRequest>
     protected void channelRead0(ChannelHandlerContext ctx, HttpRequest msg) {
         ctx.writeAndFlush(NOT_FOUND_RESPONSE)
                 .addListener(ChannelFutureListener.CLOSE);
+    }
+
+    @Override
+    public boolean isSharable() {
+        return true;
     }
 }

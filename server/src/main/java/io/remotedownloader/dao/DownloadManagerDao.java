@@ -4,13 +4,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.remotedownloader.ServerProperties;
+import io.remotedownloader.model.DownloadingFileStatus;
+import io.remotedownloader.model.dto.DownloadFileDTO;
+import io.remotedownloader.model.dto.Error;
+import io.remotedownloader.model.dto.ListFileDTO;
+import io.remotedownloader.model.dto.ListFoldersResponseDTO;
 import io.remotedownloader.protocol.ErrorException;
 import io.remotedownloader.protocol.StringMessage;
-import io.remotedownloader.protocol.dto.Error;
-import io.remotedownloader.protocol.dto.FileDTO;
-import io.remotedownloader.protocol.dto.FileStatus;
-import io.remotedownloader.protocol.dto.ListFileDTO;
-import io.remotedownloader.protocol.dto.ListFoldersResponseDTO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.AsyncHandler;
@@ -18,7 +18,6 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
@@ -87,10 +86,10 @@ public class DownloadManagerDao {
                             contentLength = -1;
                         }
 
-                        FileDTO file = new FileDTO(
+                        DownloadFileDTO file = new DownloadFileDTO(
                                 UUID.randomUUID().toString(),
                                 fileName,
-                                FileStatus.DOWNLOADING,
+                                DownloadingFileStatus.DOWNLOADING,
                                 contentLength,
                                 0, 0);
                         ctx.writeAndFlush(StringMessage.json(req, file));

@@ -1,6 +1,6 @@
 package io.remotedownloader;
 
-import io.remotedownloader.http.HttpServer;
+import io.remotedownloader.server.HttpServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

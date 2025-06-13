@@ -1,4 +1,4 @@
-package io.remotedownloader.protocol.dto;
+package io.remotedownloader.model.dto;
 
 public record ListFoldersRequestDTO(
         String path

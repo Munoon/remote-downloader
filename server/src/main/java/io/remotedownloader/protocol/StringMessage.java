@@ -1,7 +1,7 @@
 package io.remotedownloader.protocol;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.remotedownloader.protocol.dto.Error;
+import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.util.JsonUtil;
 
 public record StringMessage(

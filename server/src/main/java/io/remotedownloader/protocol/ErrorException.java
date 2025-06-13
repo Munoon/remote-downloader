@@ -1,6 +1,6 @@
 package io.remotedownloader.protocol;
 
-import io.remotedownloader.protocol.dto.Error;
+import io.remotedownloader.model.dto.Error;
 
 public class ErrorException extends RuntimeException {
     public final Error error;

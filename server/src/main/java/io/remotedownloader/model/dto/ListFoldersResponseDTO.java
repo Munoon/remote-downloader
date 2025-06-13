@@ -1,4 +1,4 @@
-package io.remotedownloader.protocol.dto;
+package io.remotedownloader.model.dto;
 
 import java.util.List;
 

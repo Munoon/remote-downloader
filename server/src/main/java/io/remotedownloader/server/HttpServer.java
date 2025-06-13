@@ -1,4 +1,4 @@
-package io.remotedownloader.http;
+package io.remotedownloader.server;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;

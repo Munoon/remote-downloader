@@ -119,7 +119,7 @@ export default function LoginCard() {
     const newCredentials: UserCredentials = {
       address,
       username,
-      passwordEncrypted: sha256(password + username)
+      passwordEncrypted: sha256(password + username.toLowerCase())
     }
 
     const client = new WebSocketClient(`ws://${address}/websocket`, newCredentials, {
