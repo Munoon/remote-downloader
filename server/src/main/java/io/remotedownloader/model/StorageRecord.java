@@ -10,10 +10,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         property = "type"
 )
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = DownloadingFile.class, name = "downloading_file"),
-        @JsonSubTypes.Type(value = User.class, name = "user")
+        // name should match with StorageModel
+        @JsonSubTypes.Type(value = DownloadingFile.class, name = "DOWNLOADING_FILE"),
+        @JsonSubTypes.Type(value = User.class, name = "USER")
 })
 public sealed interface StorageRecord<T> permits DownloadingFile, User {
     @JsonIgnore
     T getId();
+
+    @JsonIgnore
+    StorageModel getModel();
 }

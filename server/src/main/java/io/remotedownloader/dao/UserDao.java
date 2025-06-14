@@ -1,6 +1,7 @@
 package io.remotedownloader.dao;
 
 import io.netty.buffer.ByteBufUtil;
+import io.remotedownloader.model.StorageModel;
 import io.remotedownloader.model.User;
 
 import java.nio.charset.StandardCharsets;
@@ -17,7 +18,7 @@ public class UserDao {
 
     public UserDao(StorageDao storageDao) {
         this.storageDao = storageDao;
-        this.users = new ConcurrentHashMap<>(storageDao.readAllRecords(User.class));
+        this.users = new ConcurrentHashMap<>(storageDao.readAllRecords(StorageModel.USER));
 
         if (!hasAdminUser()) {
             createAdmin();

@@ -95,6 +95,11 @@ public final class DownloadingFile implements StorageRecord<String> {
     }
 
     @Override
+    public StorageModel getModel() {
+        return StorageModel.DOWNLOADING_FILE;
+    }
+
+    @Override
     public boolean equals(Object object) {
         if (!(object instanceof DownloadingFile that)) {
             return false;

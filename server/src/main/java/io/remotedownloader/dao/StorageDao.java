@@ -2,6 +2,8 @@ package io.remotedownloader.dao;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import io.remotedownloader.ServerProperties;
+import io.remotedownloader.model.StorageAction;
+import io.remotedownloader.model.StorageModel;
 import io.remotedownloader.model.StorageRecord;
 import io.remotedownloader.util.JsonUtil;
 import org.apache.logging.log4j.LogManager;
@@ -36,9 +38,17 @@ public class StorageDao {
     }
 
     public void saveRecord(StorageRecord<?> record) {
+        saveEntry(new StorageAction.Save(record));
+    }
+
+    public void deleteRecord(StorageModel model, Object id) {
+        saveEntry(new StorageAction.Delete(model, id));
+    }
+
+    private void saveEntry(StorageAction action) {
         threadPoolsHolder.storageThreadPoolExecutor.execute(() -> {
             try (BufferedWriter writer = Files.newBufferedWriter(storagePath, StandardOpenOption.APPEND)) {
-                String json = JsonUtil.writeValueAsString(record);
+                String json = JsonUtil.writeValueAsString(action);
                 if (json != null) {
                     writer.write(json);
                     writer.write('\n');
@@ -50,17 +60,28 @@ public class StorageDao {
         });
     }
 
-    public <I, T extends StorageRecord<I>> Map<I, T> readAllRecords(Class<T> clazz) {
+    public <I, T extends StorageRecord<I>> Map<I, T> readAllRecords(StorageModel model) {
         Map<I, T> result = new HashMap<>();
 
-        ObjectReader reader = JsonUtil.MAPPER.readerFor(StorageRecord.class);
+        ObjectReader reader = JsonUtil.MAPPER.readerFor(StorageAction.class);
         try (BufferedReader br = new BufferedReader(new FileReader(storagePath.toFile()))) {
             String line;
             while ((line = br.readLine()) != null) {
-                StorageRecord<?> record = reader.readValue(line);
-                if (record.getClass().equals(clazz)) {
-                    //noinspection unchecked
-                    result.put((I) record.getId(), (T) record);
+                StorageAction action = reader.readValue(line);
+                switch (action) {
+                    case StorageAction.Save(StorageRecord<?> record) -> {
+                        if (record.getModel() == model) {
+                            //noinspection unchecked
+                            result.put((I) record.getId(), (T) record);
+                        }
+                    }
+
+                    case StorageAction.Delete(StorageModel deleteModel, Object id) -> {
+                        if (deleteModel == model) {
+                            //noinspection SuspiciousMethodCalls
+                            result.remove(id);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {

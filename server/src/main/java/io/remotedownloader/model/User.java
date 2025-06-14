@@ -10,4 +10,9 @@ public record User(
     public String getId() {
         return username;
     }
+
+    @Override
+    public StorageModel getModel() {
+        return StorageModel.USER;
+    }
 }

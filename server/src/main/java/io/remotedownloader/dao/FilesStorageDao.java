@@ -1,6 +1,7 @@
 package io.remotedownloader.dao;
 
 import io.remotedownloader.model.DownloadingFile;
+import io.remotedownloader.model.StorageModel;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -18,7 +19,7 @@ public class FilesStorageDao {
         this.downloadingFiles = new ConcurrentHashMap<>();
         this.userFiles = new ConcurrentHashMap<>();
 
-        Map<String, DownloadingFile> files = storageDao.readAllRecords(DownloadingFile.class);
+        Map<String, DownloadingFile> files = storageDao.readAllRecords(StorageModel.DOWNLOADING_FILE);
         for (DownloadingFile value : files.values()) {
             addFileWithoutStoring(value);
         }
@@ -95,5 +96,7 @@ public class FilesStorageDao {
             }
             return files;
         });
+
+        storageDao.deleteRecord(StorageModel.DOWNLOADING_FILE, fileId);
     }
 }
