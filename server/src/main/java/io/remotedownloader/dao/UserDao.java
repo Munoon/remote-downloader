@@ -12,14 +12,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class UserDao {
-    private final ConcurrentMap<String, User> users = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, User> users;
+    private final StorageDao storageDao;
 
-    public UserDao() {
-        createAdmin();
+    public UserDao(StorageDao storageDao) {
+        this.storageDao = storageDao;
+        this.users = new ConcurrentHashMap<>(storageDao.readAllRecords(User.class));
+
+        if (!hasAdminUser()) {
+            createAdmin();
+        }
     }
 
     public void saveUser(User user) {
         users.put(user.username(), user);
+        storageDao.saveRecord(user);
     }
 
     public User getUserByUsername(String username) {
@@ -57,5 +64,19 @@ public class UserDao {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Failed to create admin user: SHA-256 not supported.", e);
         }
+    }
+
+    private boolean hasAdminUser() {
+        User admin = users.get("admin");
+        if (admin != null && admin.isAdmin()) {
+            return true;
+        }
+
+        for (User user : users.values()) {
+            if (user.isAdmin()) {
+                return true;
+            }
+        }
+        return false;
     }
 }

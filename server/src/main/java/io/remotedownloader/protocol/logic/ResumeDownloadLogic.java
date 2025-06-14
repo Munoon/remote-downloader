@@ -22,6 +22,9 @@ public class ResumeDownloadLogic {
         if (file == null || !username.equals(file.ownerUsername)) {
             return StringMessage.error(req, Error.ErrorTypes.NOT_FOUND, "File is not found.");
         }
+        if (file.status != DownloadingFileStatus.PAUSED) {
+            return StringMessage.error(req, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Paused'.");
+        }
 
         // TODO actually resume the downloading
 

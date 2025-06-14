@@ -10,4 +10,8 @@ public class ServerProperties extends Properties {
     public String getDownloadFolder() {
         return getProperty("download.folder", "./downloads");
     }
+
+    public String getStorageFile() {
+        return getProperty("storage.file", "./storage");
+    }
 }

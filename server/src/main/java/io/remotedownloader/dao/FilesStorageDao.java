@@ -3,15 +3,26 @@ package io.remotedownloader.dao;
 import io.remotedownloader.model.DownloadingFile;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class FilesStorageDao {
-    // id -> file
-    private final ConcurrentMap<String, DownloadingFile> downloadingFiles = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, DownloadingFile> downloadingFiles; // id -> file
+    private final ConcurrentMap<String, DownloadingFile[]> userFiles; // owner username -> files[]
+    private final StorageDao storageDao;
 
-    // owner username -> files[]
-    private final ConcurrentMap<String, DownloadingFile[]> userFiles = new ConcurrentHashMap<>();
+    public FilesStorageDao(StorageDao storageDao) {
+        this.storageDao = storageDao;
+
+        this.downloadingFiles = new ConcurrentHashMap<>();
+        this.userFiles = new ConcurrentHashMap<>();
+
+        Map<String, DownloadingFile> files = storageDao.readAllRecords(DownloadingFile.class);
+        for (DownloadingFile value : files.values()) {
+            addFileWithoutStoring(value);
+        }
+    }
 
     public DownloadingFile[] getUserFiles(String ownerUsername) {
         return userFiles.getOrDefault(ownerUsername, DownloadingFile.EMPTY_ARRAY);
@@ -42,9 +53,16 @@ public class FilesStorageDao {
             updatedFiles[files.length] = file;
             return updatedFiles;
         });
+
+        storageDao.saveRecord(file);
     }
 
     public void addFile(DownloadingFile file) {
+        addFileWithoutStoring(file);
+        storageDao.saveRecord(file);
+    }
+
+    private void addFileWithoutStoring(DownloadingFile file) {
         String fileId = file.id;
         downloadingFiles.put(fileId, file);
         userFiles.compute(file.ownerUsername, (username, files) -> {

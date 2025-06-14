@@ -10,6 +10,9 @@ public class ThreadPoolsHolder {
     public final ScheduledExecutorService scheduledThreadPoolExecutor =
             Executors.newSingleThreadScheduledExecutor(threadFactory("Scheduled-Jobs"));
 
+    public final ScheduledExecutorService storageThreadPoolExecutor =
+            Executors.newSingleThreadScheduledExecutor(threadFactory("Storage"));
+
     private static ThreadFactory threadFactory(String threadName) {
         return new ThreadFactory() {
             private int threadNumber = 0;

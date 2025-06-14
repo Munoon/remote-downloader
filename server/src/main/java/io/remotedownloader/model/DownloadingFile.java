@@ -1,10 +1,15 @@
 package io.remotedownloader.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
-public final class DownloadingFile {
+public final class DownloadingFile implements StorageRecord<String> {
     public static final DownloadingFile[] EMPTY_ARRAY = new DownloadingFile[0];
 
+    @JsonProperty
     public final String id;
     public final String name;
     public final String path;
@@ -15,8 +20,35 @@ public final class DownloadingFile {
     public final long updatedAt;
 
     // should be used just on the UI
+    @JsonIgnore
     public volatile long downloadedBytes;
+    @JsonIgnore
     public volatile long speedBytesPerMS;
+
+    @JsonCreator
+    public DownloadingFile(
+            @JsonProperty("id") String id,
+            @JsonProperty("name") String name,
+            @JsonProperty("path") String path,
+            @JsonProperty("ownerUsername") String ownerUsername,
+            @JsonProperty("status") DownloadingFileStatus status,
+            @JsonProperty("totalBytes") long totalBytes,
+            @JsonProperty("createdAt") long createdAt,
+            @JsonProperty("updatedAt") long updatedAt
+    ) {
+        this(
+                id,
+                name,
+                path,
+                ownerUsername,
+                status,
+                totalBytes,
+                createdAt,
+                updatedAt,
+                0,
+                0
+        );
+    }
 
     public DownloadingFile(
             String id,
@@ -55,6 +87,11 @@ public final class DownloadingFile {
                 downloadedBytes,
                 speedBytesPerMS
         );
+    }
+
+    @Override
+    public String getId() {
+        return id;
     }
 
     @Override

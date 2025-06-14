@@ -82,9 +82,7 @@ public class FileDownloader implements AsyncHandler<Object> {
                 DownloadingFileStatus.DOWNLOADING,
                 getContentLength(headers),
                 now,
-                now,
-                0,
-                0
+                now
         );
         this.file = file;
 
