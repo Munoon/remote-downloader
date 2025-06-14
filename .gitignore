@@ -4,6 +4,7 @@ target/
 !**/src/test/**/target/
 
 downloads
+storage
 
 ### IntelliJ IDEA ###
 .idea
