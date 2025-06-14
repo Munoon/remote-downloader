@@ -28,6 +28,12 @@ public class RemoteDownloader {
             } catch (Exception e) {
                 log.warn("Failed to gracefully stop the HTTP server", e);
             }
+
+            try {
+                holder.threadPoolsHolder.close();
+            } catch (Exception e) {
+                log.warn("Failed to gracefully shutdown thread pools", e);
+            }
         }));
     }
 }

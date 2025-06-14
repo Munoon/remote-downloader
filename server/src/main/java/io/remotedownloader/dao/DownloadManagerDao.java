@@ -2,6 +2,7 @@ package io.remotedownloader.dao;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.remotedownloader.ServerProperties;
+import io.remotedownloader.downloader.BaseFileDownloader;
 import io.remotedownloader.downloader.NewFileDownloader;
 import io.remotedownloader.downloader.ResumeFileDownloader;
 import io.remotedownloader.model.DownloadingFile;
@@ -21,7 +22,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,11 +54,10 @@ public class DownloadManagerDao {
         SeekableByteChannel fileChannel = createFileChannel(filePath);
 
         String fileId = UUID.randomUUID().toString();
-        ListenableFuture<Object> future = asyncHttpClient.prepareGet(req.url())
-                .execute(new NewFileDownloader(ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao));
-        downloadingFiles.put(fileId, future);
 
-        future.addListener(() -> downloadingFiles.remove(fileId), null);
+        NewFileDownloader handler = new NewFileDownloader(
+                ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao);
+        startDownloading(req.url(), fileId, handler, 0);
     }
 
     public void resumeDownloading(ChannelHandlerContext ctx, StringMessage msg, DownloadingFile file) {
@@ -68,17 +67,21 @@ public class DownloadManagerDao {
         long downloadedBytes = filePath.toFile().length();
         file.downloadedBytes = downloadedBytes;
 
-        String fileId = UUID.randomUUID().toString();
-        ListenableFuture<Object> future = asyncHttpClient.prepareGet(file.url)
-                .setRangeOffset(downloadedBytes + 1)
-                .execute(new ResumeFileDownloader(ctx, msg, file, filePath, fileChannel, filesStorageDao));
+        ResumeFileDownloader handler = new ResumeFileDownloader(ctx, msg, file, filePath, fileChannel, filesStorageDao);
+        startDownloading(file.url, file.id, handler, downloadedBytes + 1);
+    }
+
+    private void startDownloading(String url, String fileId, BaseFileDownloader handler, long rangeOffset) {
+        ListenableFuture<Object> future = asyncHttpClient.prepareGet(url)
+                .setRangeOffset(rangeOffset)
+                .execute(handler);
         downloadingFiles.put(fileId, future);
 
         future.addListener(() -> downloadingFiles.remove(fileId), null);
     }
 
     public void stopDownloading(String fileId) {
-        ListenableFuture<?> future = downloadingFiles.get(fileId);
+        ListenableFuture<?> future = downloadingFiles.remove(fileId);
         if (future != null) {
             future.done();
         }
@@ -104,11 +107,11 @@ public class DownloadManagerDao {
                 List<ListFileDTO> result = files
                         .map(file -> new ListFileDTO(Files.isDirectory(file), file.getFileName().toString()))
                         .toList();
-                return new ListFoldersResponseDTO(true, result);
+                return new ListFoldersResponseDTO(result);
             }
         } catch (Exception e) {
             log.warn("Failed to list files in download folder", e);
-            return new ListFoldersResponseDTO(false, Collections.emptyList());
+            throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.");
         }
     }
 
@@ -125,8 +128,8 @@ public class DownloadManagerDao {
         try {
             return Files.newByteChannel(filePath, StandardOpenOption.APPEND, StandardOpenOption.WRITE);
         } catch (Exception e) {
-            log.warn("Failed to create a file '{}'", filePath, e);
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.");
+            log.warn("Failed to open a file '{}'", filePath, e);
+            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to open a file on a server.");
         }
     }
 

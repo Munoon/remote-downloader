@@ -1,17 +1,30 @@
 package io.remotedownloader.dao;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class ThreadPoolsHolder {
+    private static final Logger log = LogManager.getLogger(ThreadPoolsHolder.class);
     public final ScheduledExecutorService scheduledThreadPoolExecutor =
             Executors.newSingleThreadScheduledExecutor(threadFactory("Scheduled-Jobs"));
 
     public final ScheduledExecutorService storageThreadPoolExecutor =
             Executors.newSingleThreadScheduledExecutor(threadFactory("Storage"));
+
+    public void close() {
+        scheduledThreadPoolExecutor.shutdown();
+        try {
+            storageThreadPoolExecutor.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Failed to gracefully shutdown storage thread pool", e);
+        }
+    }
 
     private static ThreadFactory threadFactory(String threadName) {
         return new ThreadFactory() {
