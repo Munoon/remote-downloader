@@ -113,7 +113,6 @@ public class FileDownloader implements AsyncHandler<Object> {
                 //noinspection NonAtomicOperationOnVolatileField
                 file.downloadedBytes += size;
 
-                log.info("prev = {}, now = {}, size = {}", previousChunkTime, now, size);
                 long durationMS = Math.max(now - previousChunkTime, 1_000_000) / 1_000_000;
                 file.speedBytesPerMS = size / durationMS;
             }

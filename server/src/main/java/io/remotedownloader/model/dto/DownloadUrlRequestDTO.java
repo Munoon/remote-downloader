@@ -20,7 +20,6 @@ public record DownloadUrlRequestDTO(
         ValidationUtil.fileNameAllowedChars(fileName, "File name");
 
         // TODO improve
-        ValidationUtil.nonNull(path, "Path");
         ValidationUtil.notEmpty(path, "Path");
         ValidationUtil.maxLength(path, 1_000, "Path");
     }

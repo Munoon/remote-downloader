@@ -7,6 +7,7 @@ import io.remotedownloader.dao.SessionDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.DownloadingFilesReportSubscription;
+import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.FilesHistoryReportDTO;
 import io.remotedownloader.protocol.ProtocolCommands;
 import io.remotedownloader.protocol.StringMessage;
@@ -33,10 +34,10 @@ public class DownloadingFilesReportWorker implements Runnable {
             }
 
             DownloadingFile[] files = filesStorageDao.getUserFiles(subscription.username());
-            List<DownloadingFile> filteredFiles = new ArrayList<>(files.length);
+            List<DownloadFileDTO> filteredFiles = new ArrayList<>(files.length);
             for (DownloadingFile file : files) {
                 if (file.status == DownloadingFileStatus.DOWNLOADING || file.updatedAt > lastReported) {
-                    filteredFiles.add(file);
+                    filteredFiles.add(new DownloadFileDTO(file));
                 }
             }
 

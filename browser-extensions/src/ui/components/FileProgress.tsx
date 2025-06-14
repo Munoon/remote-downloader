@@ -22,7 +22,7 @@ interface FileProgressRootProps extends React.HTMLAttributes<HTMLDivElement> {
   fileName?: React.ReactNode;
   progress?: number;
   subtitle?: React.ReactNode;
-  variant?: "downloading" | "downloaded" | "paused";
+  variant?: "downloading" | "downloaded" | "paused" | "error";
   downloadSpeed?: React.ReactNode;
   className?: string;
   onDeleteHook: MouseEventHandler<HTMLButtonElement>;
@@ -77,6 +77,8 @@ const FileProgressRoot = React.forwardRef<HTMLElement, FileProgressRootProps>(
 
             {variant === 'paused' && <Badge variant="neutral">Paused</Badge>}
             {variant === 'paused' && <IconButton size="small" icon={<FeatherPlay />} onClick={onContinueHook} disabled={buttonsDisabled} />}
+
+            {variant === 'error' && <Badge variant="error">Error</Badge>}
             
             <IconButton
               variant="destructive-tertiary"

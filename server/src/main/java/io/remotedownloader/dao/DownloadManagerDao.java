@@ -61,7 +61,7 @@ public class DownloadManagerDao {
     }
 
     public void deleteFile(DownloadingFile file) {
-        Path path = resolveFilePath(file.name, file.path);
+        Path path = resolveFilePath(file.path, file.name);
         try {
             Files.deleteIfExists(path);
         } catch (Exception e) {

@@ -16,14 +16,15 @@ public abstract class BaseMessageHandler extends SimpleChannelInboundHandler<Str
     abstract StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg);
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, StringMessage msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, StringMessage msg) {
         try {
             StringMessage response = handleRequest(ctx, msg);
             if (response != null) {
                 ctx.writeAndFlush(response);
             }
         } catch (ErrorException e) {
-            ctx.writeAndFlush(StringMessage.json(msg, e.error));
+            Error error = e.error;
+            ctx.writeAndFlush(StringMessage.error(msg, error.type(), error.message()));
         } catch (Exception e) {
             log.warn("Failed unknown exception while handling client request", e);
             ctx.writeAndFlush(StringMessage.error(msg, Error.ErrorTypes.UNKNOWN, "Unknown error."));

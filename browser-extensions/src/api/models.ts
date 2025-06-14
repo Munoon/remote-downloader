@@ -6,7 +6,7 @@ type Page<T> = {
 interface HistoryFile {
   id: string
   name: string
-  status: 'DOWNLOADING' | 'DOWNLOADED' | 'PAUSED'
+  status: 'DOWNLOADING' | 'DOWNLOADED' | 'PAUSED' | 'ERROR'
   totalBytes: number
   downloadedBytes: number
   speedBytesPerMS: number

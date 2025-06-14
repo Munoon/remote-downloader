@@ -72,13 +72,15 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
 
     const path = filePath.length === 1 ? undefined : filePath.slice(1).join('/');
     connection.client.downloadFile(url, fileName, path)
-      .then(newFile => { 
+      .then(newFile => {
+        debugger;
         historyFilesContext.prependFile(newFile);
 
         browserClient.removePendingDownload(pendingDownload)
           .then(pendingDownloads => setPendingDownloads(pendingDownloads));
       })
       .catch((error: ServerError) => {
+        debugger;
         setLoading(false);
         setErrorMessage(error.message);
       })

@@ -5,6 +5,7 @@ import io.remotedownloader.dao.DownloadManagerDao;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
+import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FileIdRequestDTO;
 import io.remotedownloader.protocol.StringMessage;
@@ -34,6 +35,6 @@ public class StopDownloadingLogic {
         DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.PAUSED);
         filesStorageDao.updateFile(updatedFile);
 
-        return StringMessage.json(req, updatedFile);
+        return StringMessage.json(req, new DownloadFileDTO(updatedFile));
     }
 }

@@ -105,6 +105,8 @@ function mapFile(file: HistoryFile) {
     return <DownloadingFile key={file.id} file={file} />
   } else if (file.status === 'PAUSED') {
     return <PausedFile key={file.id} file={file} />
+  } else if (file.status === 'ERROR') {
+    return <ErrorFile key={file.id} file={file} />
   }
 }
 
@@ -258,5 +260,41 @@ function DownloadedFile({ file }: { file: HistoryFile }) {
       />
   )
 }
+
+function ErrorFile({ file }: { file: HistoryFile }) {
+  const filesContext = useContext(HistoryFilesContext);
+  const { client, connected } = useContext(ConnectionContext);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const onDelete: MouseEventHandler<HTMLButtonElement> = (e) => {
+    e.preventDefault();
+    if (client) {
+      setLoading(true);
+      if (errorMessage) {
+        setErrorMessage('');
+      }
+
+      client.deleteFile(file.id)
+        .then(() => filesContext.deleteFile(file.id))
+        .catch((error: ServerError) => {
+          setLoading(false);
+          setErrorMessage(error.message);
+        });
+    }
+  };
+
+  return (
+    <FileProgress
+      fileName={file.name}
+      variant="error"
+      onDeleteHook={onDelete}
+      key={file.id}
+      buttonsDisabled={!connected || loading}
+      errorMessage={errorMessage}
+    />
+  )
+}
+
 
 export default Downloads;
