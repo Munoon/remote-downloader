@@ -1,9 +1,11 @@
 package io.remotedownloader.dao;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.remotedownloader.FileDownloader;
 import io.remotedownloader.ServerProperties;
+import io.remotedownloader.downloader.NewFileDownloader;
+import io.remotedownloader.downloader.ResumeFileDownloader;
 import io.remotedownloader.model.DownloadingFile;
+import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.ListFileDTO;
@@ -39,6 +41,12 @@ public class DownloadManagerDao {
         this.properties = properties;
         this.asyncHttpClient = asyncHttpClient;
         this.filesStorageDao = filesStorageDao;
+
+        for (DownloadingFile file : filesStorageDao.getAllFiles()) {
+            if (file.status == DownloadingFileStatus.DOWNLOADING) {
+                resumeDownloading(null, null, file);
+            }
+        }
     }
 
     public void download(ChannelHandlerContext ctx, StringMessage msg, DownloadUrlRequestDTO req, String username) {
@@ -47,7 +55,23 @@ public class DownloadManagerDao {
 
         String fileId = UUID.randomUUID().toString();
         ListenableFuture<Object> future = asyncHttpClient.prepareGet(req.url())
-                .execute(new FileDownloader(ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao));
+                .execute(new NewFileDownloader(ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao));
+        downloadingFiles.put(fileId, future);
+
+        future.addListener(() -> downloadingFiles.remove(fileId), null);
+    }
+
+    public void resumeDownloading(ChannelHandlerContext ctx, StringMessage msg, DownloadingFile file) {
+        Path filePath = resolveFilePath(file.path, file.name);
+        SeekableByteChannel fileChannel = openFileChannel(filePath);
+
+        long downloadedBytes = filePath.toFile().length();
+        file.downloadedBytes = downloadedBytes;
+
+        String fileId = UUID.randomUUID().toString();
+        ListenableFuture<Object> future = asyncHttpClient.prepareGet(file.url)
+                .setRangeOffset(downloadedBytes + 1)
+                .execute(new ResumeFileDownloader(ctx, msg, file, filePath, fileChannel, filesStorageDao));
         downloadingFiles.put(fileId, future);
 
         future.addListener(() -> downloadingFiles.remove(fileId), null);
@@ -91,6 +115,15 @@ public class DownloadManagerDao {
     private static SeekableByteChannel createFileChannel(Path filePath) {
         try {
             return Files.newByteChannel(filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        } catch (Exception e) {
+            log.warn("Failed to create a file '{}'", filePath, e);
+            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.");
+        }
+    }
+
+    private static SeekableByteChannel openFileChannel(Path filePath) {
+        try {
+            return Files.newByteChannel(filePath, StandardOpenOption.APPEND, StandardOpenOption.WRITE);
         } catch (Exception e) {
             log.warn("Failed to create a file '{}'", filePath, e);
             throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.");

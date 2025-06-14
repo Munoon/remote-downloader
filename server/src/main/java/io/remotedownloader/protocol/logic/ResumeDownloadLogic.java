@@ -1,22 +1,25 @@
 package io.remotedownloader.protocol.logic;
 
+import io.netty.channel.ChannelHandlerContext;
 import io.remotedownloader.Holder;
+import io.remotedownloader.dao.DownloadManagerDao;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
-import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FileIdRequestDTO;
 import io.remotedownloader.protocol.StringMessage;
 
 public class ResumeDownloadLogic {
     private final FilesStorageDao filesStorageDao;
+    private final DownloadManagerDao downloadManagerDao;
 
     public ResumeDownloadLogic(Holder holder) {
         this.filesStorageDao = holder.filesStorageDao;
+        this.downloadManagerDao = holder.downloadManagerDao;
     }
 
-    public StringMessage handleRequest(StringMessage req, String username) {
+    public StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage req, String username) {
         String fileId = req.parseJson(FileIdRequestDTO.class).fileId();
 
         DownloadingFile file = filesStorageDao.getById(fileId);
@@ -27,11 +30,7 @@ public class ResumeDownloadLogic {
             return StringMessage.error(req, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Paused'.");
         }
 
-        // TODO actually resume the downloading
-
-        DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.DOWNLOADING);
-        filesStorageDao.updateFile(updatedFile);
-
-        return StringMessage.json(req, new DownloadFileDTO(updatedFile));
+        downloadManagerDao.resumeDownloading(ctx, req, file);
+        return null;
     }
 }

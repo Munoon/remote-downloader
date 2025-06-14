@@ -26,7 +26,7 @@ public class StopDownloadingLogic {
         if (file == null || !username.equals(file.ownerUsername)) {
             return StringMessage.error(req, Error.ErrorTypes.NOT_FOUND, "File is not found.");
         }
-        if (file.status == DownloadingFileStatus.DOWNLOADING) {
+        if (file.status != DownloadingFileStatus.DOWNLOADING) {
             return StringMessage.error(req, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Downloading'.");
         }
 

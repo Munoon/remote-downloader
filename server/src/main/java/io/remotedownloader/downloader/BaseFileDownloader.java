@@ -1,15 +1,10 @@
-package io.remotedownloader;
+package io.remotedownloader.downloader;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
-import io.remotedownloader.model.dto.DownloadFileDTO;
-import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
-import io.remotedownloader.model.dto.Error;
-import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.AsyncHandler;
@@ -21,33 +16,21 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Path;
 
-public class FileDownloader implements AsyncHandler<Object> {
-    private static final Logger log = LogManager.getLogger(FileDownloader.class);
-    private final ChannelHandlerContext ctx;
-    private final StringMessage msg;
-    private final String fileId;
-    private final String ownerUsername;
-    private final DownloadUrlRequestDTO req;
+public abstract class BaseFileDownloader implements AsyncHandler<Object> {
+    private static final Logger log = LogManager.getLogger(BaseFileDownloader.class);
+    private final String url;
     private final Path filePath;
     private final SeekableByteChannel fileChannel;
-    private final FilesStorageDao filesStorageDao;
+    protected final FilesStorageDao filesStorageDao;
 
-    private DownloadingFile file;
+    protected DownloadingFile file;
     private long previousChunkTime;
 
-    public FileDownloader(ChannelHandlerContext ctx,
-                          StringMessage msg,
-                          String fileId,
-                          String ownerUsername,
-                          DownloadUrlRequestDTO req,
-                          Path filePath,
-                          SeekableByteChannel fileChannel,
-                          FilesStorageDao filesStorageDao) {
-        this.ctx = ctx;
-        this.msg = msg;
-        this.fileId = fileId;
-        this.ownerUsername = ownerUsername;
-        this.req = req;
+    protected BaseFileDownloader(String url,
+                                 Path filePath,
+                                 SeekableByteChannel fileChannel,
+                                 FilesStorageDao filesStorageDao) {
+        this.url = url;
         this.filePath = filePath;
         this.fileChannel = fileChannel;
         this.filesStorageDao = filesStorageDao;
@@ -57,37 +40,19 @@ public class FileDownloader implements AsyncHandler<Object> {
     public State onStatusReceived(HttpResponseStatus responseStatus) {
         int statusCode = responseStatus.getStatusCode();
         if (statusCode >= 200 && statusCode < 300) {
-            log.info("Start downloading '{}' to '{}'", req.url(), filePath);
+            log.info("Start downloading '{}' to '{}'", url, filePath);
             return State.CONTINUE;
         } else {
-            log.info("Received {} response code from server when trying to download {}. Aborting...",
-                    statusCode, req.url());
-            StringMessage response = StringMessage.error(
-                    msg,
-                    Error.ErrorTypes.FAILED_TO_DOWNLOAD,
-                    "Server respond with an error.");
-            ctx.writeAndFlush(response);
+            log.info("Received {} response code from server when trying to download {}. Aborting...", statusCode, filePath);
+            onStartFailure();
             return State.ABORT;
         }
     }
 
     @Override
     public State onHeadersReceived(HttpHeaders headers) {
-        long now = System.currentTimeMillis();
-        DownloadingFile file = new DownloadingFile(
-                fileId,
-                req.fileName(),
-                req.path(),
-                ownerUsername,
-                DownloadingFileStatus.DOWNLOADING,
-                getContentLength(headers),
-                now,
-                now
-        );
-        this.file = file;
-
-        filesStorageDao.addFile(file);
-        ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
+        long contentLength = getContentLength(headers);
+        onStartDownloading(contentLength);
         return State.CONTINUE;
     }
 
@@ -105,7 +70,7 @@ public class FileDownloader implements AsyncHandler<Object> {
             long now = System.nanoTime();
 
             if (log.isTraceEnabled()) {
-                log.trace("Body part received for file {} [size = {}]", req.fileName(), size);
+                log.trace("Body part received for file {} [size = {}]", filePath, size);
             }
 
             if (file != null) {
@@ -127,7 +92,7 @@ public class FileDownloader implements AsyncHandler<Object> {
 
     @Override
     public void onThrowable(Throwable t) {
-        log.warn("Failed to download '{}'", req.url(), t);
+        log.warn("Failed to download '{}'", filePath, t);
         finishDownloading(DownloadingFileStatus.ERROR);
     }
 
@@ -137,6 +102,9 @@ public class FileDownloader implements AsyncHandler<Object> {
         finishDownloading(DownloadingFileStatus.DOWNLOADED);
         return null;
     }
+
+    protected abstract void onStartFailure();
+    protected abstract void onStartDownloading(long fileLength);
 
     private void finishDownloading(DownloadingFileStatus status) {
         try {

@@ -20,7 +20,7 @@ public class MessageHandler extends BaseMessageHandler {
             case ProtocolCommands.GET_FILES_HISTORY -> logicHolder.getFilesHistoryLogic.handleRequest(msg, username);
             case ProtocolCommands.STOP_DOWNLOADING -> logicHolder.stopDownloadingLogic.handleRequest(msg, username);
             case ProtocolCommands.DELETE_FILE -> logicHolder.deleteFileLogic.handleRequest(msg, username);
-            case ProtocolCommands.RESUME_DOWNLOADING -> logicHolder.resumeDownloadLogic.handleRequest(msg, username);
+            case ProtocolCommands.RESUME_DOWNLOADING -> logicHolder.resumeDownloadLogic.handleRequest(ctx, msg, username);
             case ProtocolCommands.LIST_FOLDERS -> logicHolder.listFoldersLogic.handleRequest(msg);
 
             case ProtocolCommands.LOGIN -> StringMessage.error(

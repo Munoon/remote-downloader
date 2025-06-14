@@ -13,6 +13,7 @@ public final class DownloadingFile implements StorageRecord<String> {
     public final String id;
     public final String name;
     public final String path;
+    public final String url;
     public final String ownerUsername;
     public final DownloadingFileStatus status;
     public final long totalBytes;
@@ -30,6 +31,7 @@ public final class DownloadingFile implements StorageRecord<String> {
             @JsonProperty("id") String id,
             @JsonProperty("name") String name,
             @JsonProperty("path") String path,
+            @JsonProperty("url") String url,
             @JsonProperty("ownerUsername") String ownerUsername,
             @JsonProperty("status") DownloadingFileStatus status,
             @JsonProperty("totalBytes") long totalBytes,
@@ -40,6 +42,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                 id,
                 name,
                 path,
+                url,
                 ownerUsername,
                 status,
                 totalBytes,
@@ -54,6 +57,7 @@ public final class DownloadingFile implements StorageRecord<String> {
             String id,
             String name,
             String path,
+            String url,
             String ownerUsername,
             DownloadingFileStatus status,
             long totalBytes,
@@ -66,6 +70,7 @@ public final class DownloadingFile implements StorageRecord<String> {
         this.name = name;
         this.path = path;
         this.ownerUsername = ownerUsername;
+        this.url = url;
         this.status = status;
         this.totalBytes = totalBytes;
         this.createdAt = createdAt;
@@ -79,6 +84,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                 id,
                 name,
                 path,
+                url,
                 ownerUsername,
                 status,
                 totalBytes,
@@ -109,6 +115,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                && id.equals(that.id)
                && name.equals(that.name)
                && Objects.equals(path, that.path)
+               && url.equals(that.url)
                && ownerUsername.equals(that.ownerUsername)
                && status == that.status;
     }
@@ -118,6 +125,7 @@ public final class DownloadingFile implements StorageRecord<String> {
         int result = id.hashCode();
         result = 31 * result + name.hashCode();
         result = 31 * result + Objects.hashCode(path);
+        result = 31 * result + url.hashCode();
         result = 31 * result + ownerUsername.hashCode();
         result = 31 * result + status.hashCode();
         result = 31 * result + Long.hashCode(totalBytes);
@@ -130,6 +138,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                "id='" + id + '\'' +
                ", name='" + name + '\'' +
                ", path='" + path + '\'' +
+               ", url='" + url + '\'' +
                ", ownerUsername='" + ownerUsername + '\'' +
                ", status=" + status +
                ", totalBytes=" + totalBytes +

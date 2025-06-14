@@ -4,6 +4,7 @@ import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.StorageModel;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -98,5 +99,9 @@ public class FilesStorageDao {
         });
 
         storageDao.deleteRecord(StorageModel.DOWNLOADING_FILE, fileId);
+    }
+
+    public Collection<DownloadingFile> getAllFiles() {
+        return downloadingFiles.values();
     }
 }
