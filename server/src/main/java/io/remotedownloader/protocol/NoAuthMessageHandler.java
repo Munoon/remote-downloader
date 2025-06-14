@@ -2,6 +2,7 @@ package io.remotedownloader.protocol;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.remotedownloader.Holder;
+import io.remotedownloader.dao.SessionDao;
 import io.remotedownloader.dao.UserDao;
 import io.remotedownloader.model.User;
 import io.remotedownloader.model.dto.Error;
@@ -11,10 +12,12 @@ import io.remotedownloader.protocol.logic.LogicHolder;
 public class NoAuthMessageHandler extends BaseMessageHandler {
     private final LogicHolder logicHolder;
     private final UserDao userDao;
+    private final SessionDao sessionDao;
 
     public NoAuthMessageHandler(Holder holder) {
         this.logicHolder = new LogicHolder(holder);
         this.userDao = holder.userDao;
+        this.sessionDao = holder.sessionDao;
     }
 
     @Override
@@ -35,6 +38,11 @@ public class NoAuthMessageHandler extends BaseMessageHandler {
         if (user != null && user.encryptedPassword().equals(req.password())) {
             MessageHandler newHandler = new MessageHandler(logicHolder, username);
             ctx.pipeline().replace(this, "MessageHandler", newHandler);
+
+            if (req.subscribeOnDownloadingFilesReport()) {
+                sessionDao.addSubscription(ctx, username);
+            }
+
             return StringMessage.ok(msg);
         }
 

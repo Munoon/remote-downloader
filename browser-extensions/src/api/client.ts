@@ -6,6 +6,7 @@ type Message = { id: number, command: number, body?: any }
 const COMMANDS = {
   LOGIN: 1,
   ERROR: 2,
+  FILES_HISTORY_REPORT: 3,
   DOWNLOAD_URL: 4,
   GET_FILES_HISTORY: 5,
   DELETE_FILE: 6,
@@ -22,6 +23,7 @@ interface WebSocketClientHandler {
 
 export default class WebSocketClient {
   private readonly socket: WebSocket
+  private historyReportListeners?: (report: FilesHistoryReport) => void;
   private readonly messageHandlers: {
     [key: number]: { resolve: (msg: any) => void, reject: (msg: any) => void }
   }
@@ -67,7 +69,12 @@ export default class WebSocketClient {
   }
 
   _handleServerMessage({ command, body }: Message) {
-    // TODO impl
+    switch (command) {
+      case COMMANDS.FILES_HISTORY_REPORT:
+        if (this.historyReportListeners) {
+          this.historyReportListeners(JSON.parse(body));
+        }
+    }
   }
 
   _handleServerResponse(message: Message) {
@@ -103,8 +110,12 @@ export default class WebSocketClient {
     return promise;
   }
 
+  registerHistoryReportHandler(handler: (report: FilesHistoryReport) => void) {
+    this.historyReportListeners = handler;
+  }
+
   login(username: string, password: string) {
-    return this._send(COMMANDS.LOGIN, JSON.stringify({ username, password }));
+    return this._send(COMMANDS.LOGIN, JSON.stringify({ username, password, subscribeOnDownloadingFilesReport: true }));
   }
 
   downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {

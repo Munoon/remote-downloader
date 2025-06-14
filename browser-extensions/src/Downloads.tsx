@@ -34,6 +34,30 @@ function Downloads() {
   }, [connected, client, credentials]);
 
   useEffect(() => {
+    if (client) {
+      client.registerHistoryReportHandler(report => {
+        const newFiles = report.files;
+
+        if (files) {
+          const result: HistoryFile[] = [...files];
+          for (const newFile of newFiles) {
+            const index = files.findIndex(f => f.id === newFile.id);
+            if (index === -1) {
+              result.unshift(newFile);
+            } else {
+              result[index] = newFile;
+            }
+          }
+          setFiles(result);
+        } else {
+          setFiles(newFiles);
+          return;
+        }
+      });
+    }
+  }, [client, files]);
+
+  useEffect(() => {
     browserClient.getPendingDownloads()
       .then(downloads => setPendingDownloads(downloads))
   }, []);

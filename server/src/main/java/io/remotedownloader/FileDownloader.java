@@ -73,6 +73,7 @@ public class FileDownloader implements AsyncHandler<Object> {
 
     @Override
     public State onHeadersReceived(HttpHeaders headers) {
+        long now = System.currentTimeMillis();
         DownloadingFile file = new DownloadingFile(
                 fileId,
                 req.fileName(),
@@ -80,7 +81,11 @@ public class FileDownloader implements AsyncHandler<Object> {
                 ownerUsername,
                 DownloadingFileStatus.DOWNLOADING,
                 getContentLength(headers),
-                0, 0);
+                now,
+                now,
+                0,
+                0
+        );
         this.file = file;
 
         filesStorageDao.addFile(file);

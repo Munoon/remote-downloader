@@ -3,13 +3,17 @@ type Page<T> = {
   totalElements: number
 }
 
-type HistoryFile = {
+interface HistoryFile {
   id: string
   name: string
   status: 'DOWNLOADING' | 'DOWNLOADED' | 'PAUSED'
   totalBytes: number
   downloadedBytes: number
   speedBytesPerMS: number
+}
+
+interface FilesHistoryReport {
+  files: HistoryFile[]
 }
 
 interface ListFile {

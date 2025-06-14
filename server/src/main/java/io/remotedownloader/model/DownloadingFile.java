@@ -11,6 +11,8 @@ public final class DownloadingFile {
     public final String ownerUsername;
     public final DownloadingFileStatus status;
     public final long totalBytes;
+    public final long createdAt;
+    public final long updatedAt;
 
     // should be used just on the UI
     public volatile long downloadedBytes;
@@ -23,6 +25,8 @@ public final class DownloadingFile {
             String ownerUsername,
             DownloadingFileStatus status,
             long totalBytes,
+            long createdAt,
+            long updatedAt,
             long downloadedBytes,
             long speedBytesPerMS
     ) {
@@ -32,13 +36,25 @@ public final class DownloadingFile {
         this.ownerUsername = ownerUsername;
         this.status = status;
         this.totalBytes = totalBytes;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.downloadedBytes = downloadedBytes;
         this.speedBytesPerMS = speedBytesPerMS;
     }
 
     public DownloadingFile withStatus(DownloadingFileStatus status) {
         return new DownloadingFile(
-                id, name, path, ownerUsername, status, totalBytes, downloadedBytes, speedBytesPerMS);
+                id,
+                name,
+                path,
+                ownerUsername,
+                status,
+                totalBytes,
+                createdAt,
+                System.currentTimeMillis(),
+                downloadedBytes,
+                speedBytesPerMS
+        );
     }
 
     @Override

@@ -1,8 +1,11 @@
 package io.remotedownloader;
 
 import io.remotedownloader.server.HttpServer;
+import io.remotedownloader.worker.DownloadingFilesReportWorker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.TimeUnit;
 
 public class RemoteDownloader {
     private static final Logger log = LogManager.getLogger(RemoteDownloader.class);
@@ -14,6 +17,10 @@ public class RemoteDownloader {
 
         HttpServer httpServer = new HttpServer(holder);
         httpServer.start();
+
+        holder.threadPoolsHolder.scheduledThreadPoolExecutor.scheduleAtFixedRate(
+                new DownloadingFilesReportWorker(holder),
+                1, 1, TimeUnit.SECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

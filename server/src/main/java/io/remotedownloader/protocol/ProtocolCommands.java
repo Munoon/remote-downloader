@@ -3,6 +3,7 @@ package io.remotedownloader.protocol;
 public class ProtocolCommands {
     public static final short LOGIN = 1;
     public static final short ERROR = 2;
+    public static final short FILES_HISTORY_REPORT = 3;
     public static final short DOWNLOAD_URL = 4;
     public static final short GET_FILES_HISTORY = 5;
     public static final short DELETE_FILE = 6;
