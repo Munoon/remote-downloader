@@ -11,6 +11,7 @@ public record Error(
         NOT_FOUND,
         INCORRECT_CREDENTIALS,
         NOT_AUTHENTICATED,
-        ALREADY_AUTHENTICATED
+        ALREADY_AUTHENTICATED,
+        VALIDATION
     }
 }

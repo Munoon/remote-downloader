@@ -33,7 +33,7 @@ public class NoAuthMessageHandler extends BaseMessageHandler {
     private StringMessage login(ChannelHandlerContext ctx, StringMessage msg) {
         LoginRequestDTO req = msg.parseJson(LoginRequestDTO.class);
 
-        String username = req.username();
+        String username = req.username().toLowerCase();
         User user = userDao.getUserByUsername(username);
         if (user != null && user.encryptedPassword().equals(req.password())) {
             MessageHandler newHandler = new MessageHandler(logicHolder, username);

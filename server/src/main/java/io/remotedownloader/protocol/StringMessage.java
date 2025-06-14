@@ -2,6 +2,7 @@ package io.remotedownloader.protocol;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.remotedownloader.model.dto.Error;
+import io.remotedownloader.model.dto.Validatable;
 import io.remotedownloader.util.JsonUtil;
 
 public record StringMessage(
@@ -9,9 +10,11 @@ public record StringMessage(
         short command,
         String data
 ) {
-    public <T> T parseJson(Class<T> clazz) {
+    public <T extends Validatable> T parseJson(Class<T> clazz) {
         try {
-            return JsonUtil.MAPPER.readValue(data, clazz);
+            T t = JsonUtil.MAPPER.readValue(data, clazz);
+            t.validate();
+            return t;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
