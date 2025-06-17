@@ -114,6 +114,8 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         }
         if (file != null) {
             filesStorageDao.updateFile(file.withStatus(status));
+        } else {
+            onStartFailure();
         }
     }
 

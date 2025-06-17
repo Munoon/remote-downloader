@@ -34,6 +34,12 @@ public class RemoteDownloader {
             } catch (Exception e) {
                 log.warn("Failed to gracefully shutdown thread pools", e);
             }
+
+            try {
+                holder.transportTypeHolder.close();
+            } catch (Exception e) {
+                log.warn("Failed to gracefully stop the Netty threads", e);
+            }
         }));
     }
 }

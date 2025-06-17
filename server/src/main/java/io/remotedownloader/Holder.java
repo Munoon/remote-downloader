@@ -5,15 +5,14 @@ import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.dao.SessionDao;
 import io.remotedownloader.dao.StorageDao;
 import io.remotedownloader.dao.ThreadPoolsHolder;
+import io.remotedownloader.dao.TransportTypeHolder;
 import io.remotedownloader.dao.UserDao;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClient;
 
 public class Holder {
     public final ServerProperties serverProperties;
+    public final TransportTypeHolder transportTypeHolder;
     public final ThreadPoolsHolder threadPoolsHolder;
     public final StorageDao storageDao;
-    public final AsyncHttpClient asyncHttpClient;
     public final FilesStorageDao filesStorageDao;
     public final DownloadManagerDao downloadManagerDao;
     public final UserDao userDao;
@@ -21,12 +20,12 @@ public class Holder {
 
     public Holder() {
         this.serverProperties = new ServerProperties();
+        this.transportTypeHolder = new TransportTypeHolder(serverProperties);
         this.threadPoolsHolder = new ThreadPoolsHolder();
         this.storageDao = new StorageDao(serverProperties, threadPoolsHolder);
-        this.asyncHttpClient = new DefaultAsyncHttpClient();
         this.filesStorageDao = new FilesStorageDao(storageDao);
         this.downloadManagerDao = new DownloadManagerDao(
-                serverProperties, asyncHttpClient, filesStorageDao, threadPoolsHolder);
+                serverProperties, transportTypeHolder, filesStorageDao, threadPoolsHolder);
         this.userDao = new UserDao(storageDao);
         this.sessionDao = new SessionDao();
     }

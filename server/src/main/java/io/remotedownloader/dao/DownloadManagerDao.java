@@ -1,6 +1,8 @@
 package io.remotedownloader.dao;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.epoll.Epoll;
+import io.netty.handler.ssl.OpenSsl;
 import io.remotedownloader.ServerProperties;
 import io.remotedownloader.downloader.BaseFileDownloader;
 import io.remotedownloader.downloader.NewFileDownloader;
@@ -16,12 +18,15 @@ import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
 
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -38,13 +43,24 @@ public class DownloadManagerDao {
     private final ThreadPoolsHolder threadPoolsHolder;
 
     public DownloadManagerDao(ServerProperties properties,
-                              AsyncHttpClient asyncHttpClient,
+                              TransportTypeHolder transportTypeHolder,
                               FilesStorageDao filesStorageDao,
                               ThreadPoolsHolder threadPoolsHolder) {
         this.properties = properties;
-        this.asyncHttpClient = asyncHttpClient;
         this.filesStorageDao = filesStorageDao;
         this.threadPoolsHolder = threadPoolsHolder;
+
+        DefaultAsyncHttpClientConfig httpClientConfig = new DefaultAsyncHttpClientConfig.Builder()
+                .setRequestTimeout(Duration.ofSeconds(-1))
+                .setMaxRedirects(properties.getMaxRedirects())
+                .setKeepAlive(false)
+                .setUserAgent("Remote-Downloader/1.0")
+                .setMaxRequestRetry(properties.getMaxRequestRetry())
+                .setUseOpenSsl(OpenSsl.isAvailable())
+                .setUseNativeTransport(Epoll.isAvailable())
+//                .setEventLoopGroup(transportTypeHolder.workerGroup)
+                .build();
+        this.asyncHttpClient = new DefaultAsyncHttpClient(httpClientConfig);
 
         for (DownloadingFile file : filesStorageDao.getAllFiles()) {
             if (file.status == DownloadingFileStatus.DOWNLOADING) {
@@ -93,6 +109,8 @@ public class DownloadManagerDao {
     private void startDownloading(String url, String fileId, BaseFileDownloader handler, long rangeOffset) {
         ListenableFuture<Object> future = asyncHttpClient.prepareGet(url)
                 .setRangeOffset(rangeOffset)
+                .setFollowRedirect(properties.getFollowRedirect())
+                .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()))
                 .execute(handler);
         downloadingFiles.put(fileId, future);
 
