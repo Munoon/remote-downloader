@@ -4,7 +4,8 @@ import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.protocol.ErrorException;
 
 public class ValidationUtil {
-    private static String BASIC_ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.@";
+    private static final String BASIC_ALLOWED_CHARS =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.@";
 
     public static void nonNull(Object value, String fieldName) {
         if (value == null) {

@@ -79,7 +79,7 @@ public class DownloadManagerDao {
                                             DownloadUrlRequestDTO req,
                                             String username) {
         return CompletableFuture.runAsync(() -> {
-            Path filePath = resolveFilePath(req.path(), req.fileName());
+            Path filePath = resolveFilePath(req.path(), req.fileName(), true);
             SeekableByteChannel fileChannel = createFileChannel(filePath);
 
             String fileId = UUID.randomUUID().toString();
@@ -94,7 +94,7 @@ public class DownloadManagerDao {
                                                      StringMessage msg,
                                                      DownloadingFile file) {
         return CompletableFuture.runAsync(() -> {
-            Path filePath = resolveFilePath(file.path, file.name);
+            Path filePath = resolveFilePath(file.path, file.name, false);
             SeekableByteChannel fileChannel = openFileChannel(filePath);
 
             long downloadedBytes = filePath.toFile().length();
@@ -126,7 +126,7 @@ public class DownloadManagerDao {
 
     public void deleteFile(DownloadingFile file) {
         threadPoolsHolder.blockingTasksExecutor.execute(() -> {
-            Path path = resolveFilePath(file.path, file.name);
+            Path path = resolveFilePath(file.path, file.name, false);
             try {
                 Files.deleteIfExists(path);
             } catch (Exception e) {
@@ -150,8 +150,7 @@ public class DownloadManagerDao {
                     return new ListFoldersResponseDTO(result);
                 }
             } catch (Exception e) {
-                log.warn("Failed to list files in download folder", e);
-                throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.");
+                throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.", e);
             }
         }, threadPoolsHolder.blockingTasksExecutor);
     }
@@ -160,8 +159,7 @@ public class DownloadManagerDao {
         try {
             return Files.newByteChannel(filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         } catch (Exception e) {
-            log.warn("Failed to create a file '{}'", filePath, e);
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.");
+            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.", e);
         }
     }
 
@@ -169,15 +167,28 @@ public class DownloadManagerDao {
         try {
             return Files.newByteChannel(filePath, StandardOpenOption.APPEND, StandardOpenOption.WRITE);
         } catch (Exception e) {
-            log.warn("Failed to open a file '{}'", filePath, e);
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to open a file on a server.");
+            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to open a file on a server.", e);
         }
     }
 
-    private Path resolveFilePath(String path, String fileName) {
+    private Path resolveFilePath(String path, String fileName, boolean createFolders) {
         Path downloadFolder = resolveDownloadFolder();
         if (path != null) {
             downloadFolder = downloadFolder.resolve(path);
+
+            if (createFolders) {
+                if (Files.exists(downloadFolder)) {
+                    if (!Files.isDirectory(downloadFolder)) {
+                        throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Specified directory is a file.");
+                    }
+                } else {
+                    try {
+                        Files.createDirectories(downloadFolder);
+                    } catch (Exception e) {
+                        throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a directory", e);
+                    }
+                }
+            }
         }
         return downloadFolder.resolve(fileName);
     }
@@ -188,11 +199,9 @@ public class DownloadManagerDao {
             try {
                 Files.createDirectory(downloadFolder);
             } catch (Exception e) {
-                log.warn("Failed to create a download folder '{}'", downloadFolder, e);
-                throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a download folder.");
+                throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a download folder.", e);
             }
         } else if (!Files.isDirectory(downloadFolder)) {
-            log.warn("The download folder is actually file.");
             throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Download folder is a file.");
         }
         return downloadFolder;

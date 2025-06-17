@@ -25,6 +25,7 @@ public abstract class BaseMessageHandler extends SimpleChannelInboundHandler<Str
                 ctx.writeAndFlush(response);
             }
         } catch (ErrorException e) {
+            log.warn("Handled error while processing WebSocket request", e);
             Error error = e.error;
             ctx.writeAndFlush(StringMessage.error(msg, error.type(), error.message()));
         } catch (Exception e) {
@@ -41,6 +42,7 @@ public abstract class BaseMessageHandler extends SimpleChannelInboundHandler<Str
     public static void handleException(CompletableFuture<?> future, ChannelHandlerContext ctx, StringMessage req) {
         future.exceptionally(e -> {
             if (e instanceof ErrorException errorException) {
+                log.warn("Handled error while processing WebSocket request", e);
                 Error error = errorException.error;
                 ctx.writeAndFlush(StringMessage.error(req, error.type(), error.message()));
             } else {
