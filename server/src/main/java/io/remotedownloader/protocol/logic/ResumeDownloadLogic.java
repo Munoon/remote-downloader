@@ -8,7 +8,10 @@ import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FileIdRequestDTO;
+import io.remotedownloader.protocol.BaseMessageHandler;
 import io.remotedownloader.protocol.StringMessage;
+
+import java.util.concurrent.CompletableFuture;
 
 public class ResumeDownloadLogic {
     private final FilesStorageDao filesStorageDao;
@@ -30,7 +33,8 @@ public class ResumeDownloadLogic {
             return StringMessage.error(req, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Paused'.");
         }
 
-        downloadManagerDao.resumeDownloading(ctx, req, file);
+        CompletableFuture<Void> future = downloadManagerDao.resumeDownloading(ctx, req, file);
+        BaseMessageHandler.handleException(future, ctx, req);
         return null;
     }
 }

@@ -118,14 +118,14 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     private static long getContentLength(HttpHeaders headers) {
-        long contentLength;
         try {
             String contentLengthValue = headers.get(HttpHeaderNames.CONTENT_LENGTH);
-            contentLength = Long.parseLong(contentLengthValue);
+            if (contentLengthValue != null) {
+                return Long.parseLong(contentLengthValue);
+            }
         } catch (Exception e) {
             log.warn("Failed to get file content length", e);
-            contentLength = -1;
         }
-        return contentLength;
+        return -1;
     }
 }

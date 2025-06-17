@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
@@ -34,13 +35,16 @@ public class DownloadManagerDao {
     private final ServerProperties properties;
     private final AsyncHttpClient asyncHttpClient;
     private final FilesStorageDao filesStorageDao;
+    private final ThreadPoolsHolder threadPoolsHolder;
 
     public DownloadManagerDao(ServerProperties properties,
                               AsyncHttpClient asyncHttpClient,
-                              FilesStorageDao filesStorageDao) {
+                              FilesStorageDao filesStorageDao,
+                              ThreadPoolsHolder threadPoolsHolder) {
         this.properties = properties;
         this.asyncHttpClient = asyncHttpClient;
         this.filesStorageDao = filesStorageDao;
+        this.threadPoolsHolder = threadPoolsHolder;
 
         for (DownloadingFile file : filesStorageDao.getAllFiles()) {
             if (file.status == DownloadingFileStatus.DOWNLOADING) {
@@ -49,26 +53,36 @@ public class DownloadManagerDao {
         }
     }
 
-    public void download(ChannelHandlerContext ctx, StringMessage msg, DownloadUrlRequestDTO req, String username) {
-        Path filePath = resolveFilePath(req.path(), req.fileName());
-        SeekableByteChannel fileChannel = createFileChannel(filePath);
+    public CompletableFuture<Void> download(ChannelHandlerContext ctx,
+                                            StringMessage msg,
+                                            DownloadUrlRequestDTO req,
+                                            String username) {
+        return CompletableFuture.runAsync(() -> {
+            Path filePath = resolveFilePath(req.path(), req.fileName());
+            SeekableByteChannel fileChannel = createFileChannel(filePath);
 
-        String fileId = UUID.randomUUID().toString();
+            String fileId = UUID.randomUUID().toString();
 
-        NewFileDownloader handler = new NewFileDownloader(
-                ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao);
-        startDownloading(req.url(), fileId, handler, 0);
+            NewFileDownloader handler = new NewFileDownloader(
+                    ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao);
+            startDownloading(req.url(), fileId, handler, 0);
+        }, threadPoolsHolder.blockingTasksExecutor);
     }
 
-    public void resumeDownloading(ChannelHandlerContext ctx, StringMessage msg, DownloadingFile file) {
-        Path filePath = resolveFilePath(file.path, file.name);
-        SeekableByteChannel fileChannel = openFileChannel(filePath);
+    public CompletableFuture<Void> resumeDownloading(ChannelHandlerContext ctx,
+                                                     StringMessage msg,
+                                                     DownloadingFile file) {
+        return CompletableFuture.runAsync(() -> {
+            Path filePath = resolveFilePath(file.path, file.name);
+            SeekableByteChannel fileChannel = openFileChannel(filePath);
 
-        long downloadedBytes = filePath.toFile().length();
-        file.downloadedBytes = downloadedBytes;
+            long downloadedBytes = filePath.toFile().length();
+            file.downloadedBytes = downloadedBytes;
 
-        ResumeFileDownloader handler = new ResumeFileDownloader(ctx, msg, file, filePath, fileChannel, filesStorageDao);
-        startDownloading(file.url, file.id, handler, downloadedBytes + 1);
+            ResumeFileDownloader handler = new ResumeFileDownloader(
+                    ctx, msg, file, filePath, fileChannel, filesStorageDao);
+            startDownloading(file.url, file.id, handler, downloadedBytes + 1);
+        }, threadPoolsHolder.blockingTasksExecutor);
     }
 
     private void startDownloading(String url, String fileId, BaseFileDownloader handler, long rangeOffset) {
@@ -88,31 +102,35 @@ public class DownloadManagerDao {
     }
 
     public void deleteFile(DownloadingFile file) {
-        Path path = resolveFilePath(file.path, file.name);
-        try {
-            Files.deleteIfExists(path);
-        } catch (Exception e) {
-            log.warn("Failed to delete the file from the server", e);
-        }
+        threadPoolsHolder.blockingTasksExecutor.execute(() -> {
+            Path path = resolveFilePath(file.path, file.name);
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception e) {
+                log.warn("Failed to delete the file from the server", e);
+            }
+        });
     }
 
-    public ListFoldersResponseDTO listFolders(String path) {
-        try {
-            Path downloadFolder = resolveDownloadFolder();
-            if (path != null) {
-                downloadFolder = downloadFolder.resolve(path);
-            }
+    public CompletableFuture<ListFoldersResponseDTO> listFolders(String path) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path downloadFolder = resolveDownloadFolder();
+                if (path != null) {
+                    downloadFolder = downloadFolder.resolve(path);
+                }
 
-            try (Stream<Path> files = Files.list(downloadFolder)) {
-                List<ListFileDTO> result = files
-                        .map(file -> new ListFileDTO(Files.isDirectory(file), file.getFileName().toString()))
-                        .toList();
-                return new ListFoldersResponseDTO(result);
+                try (Stream<Path> files = Files.list(downloadFolder)) {
+                    List<ListFileDTO> result = files
+                            .map(file -> new ListFileDTO(Files.isDirectory(file), file.getFileName().toString()))
+                            .toList();
+                    return new ListFoldersResponseDTO(result);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to list files in download folder", e);
+                throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.");
             }
-        } catch (Exception e) {
-            log.warn("Failed to list files in download folder", e);
-            throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.");
-        }
+        }, threadPoolsHolder.blockingTasksExecutor);
     }
 
     private static SeekableByteChannel createFileChannel(Path filePath) {

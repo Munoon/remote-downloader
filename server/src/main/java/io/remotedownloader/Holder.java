@@ -25,7 +25,8 @@ public class Holder {
         this.storageDao = new StorageDao(serverProperties, threadPoolsHolder);
         this.asyncHttpClient = new DefaultAsyncHttpClient();
         this.filesStorageDao = new FilesStorageDao(storageDao);
-        this.downloadManagerDao = new DownloadManagerDao(serverProperties, asyncHttpClient, filesStorageDao);
+        this.downloadManagerDao = new DownloadManagerDao(
+                serverProperties, asyncHttpClient, filesStorageDao, threadPoolsHolder);
         this.userDao = new UserDao(storageDao);
         this.sessionDao = new SessionDao();
     }

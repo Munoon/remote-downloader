@@ -8,7 +8,6 @@ public record ListFoldersRequestDTO(
     @Override
     public void validate() {
         // TODO improve
-        ValidationUtil.nonNull(path, "Path");
         ValidationUtil.notEmpty(path, "Path");
         ValidationUtil.maxLength(path, 1_000, "Path");
     }

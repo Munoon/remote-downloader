@@ -21,7 +21,7 @@ public class MessageHandler extends BaseMessageHandler {
             case ProtocolCommands.STOP_DOWNLOADING -> logicHolder.stopDownloadingLogic.handleRequest(msg, username);
             case ProtocolCommands.DELETE_FILE -> logicHolder.deleteFileLogic.handleRequest(msg, username);
             case ProtocolCommands.RESUME_DOWNLOADING -> logicHolder.resumeDownloadLogic.handleRequest(ctx, msg, username);
-            case ProtocolCommands.LIST_FOLDERS -> logicHolder.listFoldersLogic.handleRequest(msg);
+            case ProtocolCommands.LIST_FOLDERS -> logicHolder.listFoldersLogic.handleRequest(ctx, msg);
 
             case ProtocolCommands.LOGIN -> StringMessage.error(
                     msg, ErrorTypes.ALREADY_AUTHENTICATED, "You are already authenticated.");

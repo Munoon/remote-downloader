@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -17,9 +18,14 @@ public class ThreadPoolsHolder {
     public final ScheduledExecutorService storageThreadPoolExecutor =
             Executors.newSingleThreadScheduledExecutor(threadFactory("Storage"));
 
+    public final ExecutorService blockingTasksExecutor =
+            Executors.newSingleThreadExecutor(threadFactory("Blocking-Task-Executor"));
+
     public void close() {
         scheduledThreadPoolExecutor.shutdown();
+        blockingTasksExecutor.shutdown();
         try {
+            storageThreadPoolExecutor.shutdown();
             storageThreadPoolExecutor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("Failed to gracefully shutdown storage thread pool", e);
