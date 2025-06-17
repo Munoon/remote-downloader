@@ -90,7 +90,7 @@ function Downloads() {
       <ConnectionError />
       {errorMessage && <ErrorMessage text={errorMessage} />}
       {files && files.map(file => mapFile(file))}
-      {!files && connected && <LoadingFileProgress />}
+      {!files && !errorMessage && <LoadingFileProgress />}
       {files && files.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && !failedToConnectReason && (
         <NoDownloads />
       )}
