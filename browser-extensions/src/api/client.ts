@@ -1,6 +1,8 @@
 import {ConnectionContextType} from "../context.tsx";
 import {UserCredentials} from "../browserClient.tsx";
 
+const RETRIES_LIMIT = 3;
+
 type Message = { id: number, command: number, body?: any }
 
 const COMMANDS = {
@@ -27,7 +29,11 @@ export default class WebSocketClient {
   public handlers: WebSocketClientHandler
   private historyReportListeners?: (report: FilesHistoryReport) => void;
   private readonly messageHandlers: {
-    [key: number]: { resolve: (msg: any) => void, reject: (msg: any) => void }
+    [key: number]: {
+      resolve: (msg: any) => void,
+      reject: (msg: any) => void,
+      retryTimeout: number
+    }
   }
   private messageId: number
   private reconnectTimeout?: number
@@ -55,7 +61,13 @@ export default class WebSocketClient {
       await this.login(this.credentials.username, this.credentials.passwordEncrypted);
       this.handlers.onOpen();
     } catch (error) {
-      this.handlers.onError(error as ServerError);
+      const serverError = error as ServerError;
+      if (serverError.type === 'ALREADY_AUTHENTICATED') {
+        // shouldn't happen, just in case
+        this.handlers.onOpen();
+      } else {
+        this.handlers.onError(serverError);
+      }
     }
   }
 
@@ -85,6 +97,10 @@ export default class WebSocketClient {
   private handleServerResponse(message: Message) {
     const handler = this.messageHandlers[message.id];
     if (handler) {
+      if (handler.retryTimeout !== -1) {
+        clearTimeout(handler.retryTimeout)
+      }
+
       const body = message.body ? JSON.parse(message.body) : null;
       if (message.command === COMMANDS.ERROR) {
         handler.reject(body);
@@ -95,7 +111,7 @@ export default class WebSocketClient {
     }
   }
 
-  private send(command: number, body: string): Promise<any> {
+  private send(command: number, body: string, retryCount: number = 0): Promise<any> {
     const id = ++this.messageId;
 
     let promiseResolve: (val: any) => void;
@@ -105,7 +121,12 @@ export default class WebSocketClient {
       promiseReject = reject;
     });
 
-    this.messageHandlers[id] = { resolve: promiseResolve!, reject: promiseReject! };
+    // @ts-ignore
+    const retryTimeout: number = retryCount < (RETRIES_LIMIT - 1)
+      ? setTimeout(() => this.send(command, body, retryCount + 1), 1000)
+      : -1;
+
+    this.messageHandlers[id] = { resolve: promiseResolve!, reject: promiseReject!, retryTimeout };
 
     const binary = buildBinaryMessage({ id, command, body });
     this.socket.send(binary);

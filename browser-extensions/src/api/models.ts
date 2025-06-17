@@ -27,6 +27,14 @@ interface ListFoldersResponse {
 }
 
 interface ServerError {
-  type: 'UNKNOWN' | 'UNKNOWN_COMMAND' | 'FAILED_TO_DOWNLOAD' | 'NOT_FOUND' | 'INCORRECT_CREDENTIALS' | string;
+  type: 'UNKNOWN' |
+    'UNKNOWN_COMMAND' |
+    'FAILED_TO_DOWNLOAD' |
+    'NOT_FOUND' |
+    'INCORRECT_CREDENTIALS' |
+    'NOT_AUTHENTICATED' |
+    'ALREADY_AUTHENTICATED' |
+    'VALIDATION'
+    | string;
   message: string
 }
