@@ -14,8 +14,10 @@ public class SessionDao {
     public void addSubscription(ChannelHandlerContext ctx, String username) {
         Channel channel = ctx.channel();
         filesSubscriptions.put(channel, new DownloadingFilesReportSubscription(username, ctx));
-        channel.closeFuture()
-                .addListener(f -> filesSubscriptions.remove(channel));
+    }
+
+    public void removeSubscription(Channel channel) {
+        filesSubscriptions.remove(channel);
     }
 
     public Collection<DownloadingFilesReportSubscription> getDownloadingFilesReportSubscriptions() {

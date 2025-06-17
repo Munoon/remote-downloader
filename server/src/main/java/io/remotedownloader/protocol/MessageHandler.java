@@ -1,15 +1,18 @@
 package io.remotedownloader.protocol;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.remotedownloader.dao.SessionDao;
 import io.remotedownloader.model.dto.Error.ErrorTypes;
 import io.remotedownloader.protocol.logic.LogicHolder;
 
 public class MessageHandler extends BaseMessageHandler {
     private final LogicHolder logicHolder;
+    private final SessionDao sessionDao;
     private final String username;
 
-    public MessageHandler(LogicHolder logicHolder, String username) {
+    public MessageHandler(LogicHolder logicHolder, SessionDao sessionDao, String username) {
         this.logicHolder = logicHolder;
+        this.sessionDao = sessionDao;
         this.username = username;
     }
 
@@ -27,5 +30,10 @@ public class MessageHandler extends BaseMessageHandler {
                     msg, ErrorTypes.ALREADY_AUTHENTICATED, "You are already authenticated.");
             default -> StringMessage.error(msg, ErrorTypes.UNKNOWN_COMMAND, "Unknown command.");
         };
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        sessionDao.removeSubscription(ctx.channel());
     }
 }

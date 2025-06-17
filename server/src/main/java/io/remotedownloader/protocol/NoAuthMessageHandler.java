@@ -36,7 +36,7 @@ public class NoAuthMessageHandler extends BaseMessageHandler {
         String username = req.username().toLowerCase();
         User user = userDao.getUserByUsername(username);
         if (user != null && user.encryptedPassword().equals(req.password())) {
-            MessageHandler newHandler = new MessageHandler(logicHolder, username);
+            MessageHandler newHandler = new MessageHandler(logicHolder, sessionDao, username);
             ctx.pipeline().replace(this, "MessageHandler", newHandler);
 
             if (req.subscribeOnDownloadingFilesReport()) {
