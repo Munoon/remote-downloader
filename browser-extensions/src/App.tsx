@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { DefaultPageLayout } from "@/ui/layouts/DefaultPageLayout";
+import {useEffect, useState} from "react";
+import {DefaultPageLayout} from "@/ui/layouts/DefaultPageLayout";
 import Downloads from "./Downloads";
-import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
-import { ConnectionContext, UserCredentialsContext } from "./context";
-import browserClient, { UserCredentials } from "./browserClient.tsx";
+import WebSocketClient, {buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler} from "./api/client";
+import {ConnectionContext, UserCredentialsContext} from "./context";
+import browserClient, {UserCredentials} from "./browserClient.tsx";
 import LoginCard from "./LoginCard";
 
 export default function App() {
@@ -19,7 +19,7 @@ export default function App() {
     const credentials = await browserClient.getCredentials();
     if (credentials) {
       setCredentials(credentials);
-      const client = new WebSocketClient(`ws://${credentials.address}/websocket`, credentials, {
+      const client = new WebSocketClient(credentials, {
         onOpen() {
           setConnection({
             connected: true,

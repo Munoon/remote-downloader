@@ -1,11 +1,11 @@
-import { MouseEventHandler, useContext } from "react";
+import {MouseEventHandler, useContext} from "react";
 import browserClient from "./browserClient.tsx";
-import { ConnectionContext, UserCredentialsContext } from "./context";
-import { ErrorMessage } from "./ui/components/ErrorMessage";
-import { FeatherAlertCircle } from "@subframe/core";
+import {ConnectionContext, UserCredentialsContext} from "./context";
+import {ErrorMessage} from "./ui/components/ErrorMessage";
+import {FeatherAlertCircle} from "@subframe/core";
 
 export default function ConnectionError() {
-  const { failedToConnectReason, setConnection } = useContext(ConnectionContext);
+  const { failedToConnectReason, setConnection, client } = useContext(ConnectionContext);
   const { setCredentials } = useContext(UserCredentialsContext);
 
   if (!failedToConnectReason) {
@@ -14,6 +14,9 @@ export default function ConnectionError() {
 
   const logout: MouseEventHandler<HTMLSpanElement> = (e) => {
     e.preventDefault();
+    if (client) {
+      client.close();
+    }
     setCredentials(undefined);
     browserClient.setCredentials(undefined);
     setConnection({ connected: false, connecting: false, client: undefined, setConnection })

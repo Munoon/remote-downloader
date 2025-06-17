@@ -22,53 +22,58 @@ interface WebSocketClientHandler {
 }
 
 export default class WebSocketClient {
-  private readonly socket: WebSocket
+  private readonly credentials: UserCredentials
+  private socket: WebSocket
+  public handlers: WebSocketClientHandler
   private historyReportListeners?: (report: FilesHistoryReport) => void;
   private readonly messageHandlers: {
     [key: number]: { resolve: (msg: any) => void, reject: (msg: any) => void }
   }
-  public handlers: WebSocketClientHandler
   private messageId: number
+  private reconnectTimeout?: number
 
-  constructor(url: string, credentials: UserCredentials, handlers: WebSocketClientHandler) {
+  constructor(credentials: UserCredentials, handlers: WebSocketClientHandler) {
     this.messageId = 0;
     this.messageHandlers = {};
+    this.credentials = credentials;
     this.handlers = handlers;
+    this.socket = this.buildWebSocket();
+  }
 
-    this.socket = new WebSocket(url);
-    this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = async () => {
-      try {
-        await this.login(credentials.username, credentials.passwordEncrypted);
-        handlers.onOpen();
-      } catch (error) {
-        handlers.onError(error as ServerError);
-      }
-    };
-    this.socket.onclose = () => this.handlers.onClose();
-    this.socket.onmessage = (event: MessageEvent) => this._onSocketMessage(event);
-    this.socket.onerror = (event: Event) => {
-      console.log("Received WebSocket error", event);
-      this.handlers.onError({ type: 'UNKNOWN', message: 'Connection failed.' });
-      this.socket.close();
+  private buildWebSocket() {
+    const socket = new WebSocket(`ws://${this.credentials.address}/websocket`);
+    socket.binaryType = "arraybuffer";
+    socket.onopen = () => this.onOpen();
+    socket.onclose = () => this.onClose();
+    socket.onmessage = (event: MessageEvent) => this.onSocketMessage(event);
+    socket.onerror = (event: Event) => this.onError(event);
+    return socket;
+  }
+
+  private async onOpen() {
+    try {
+      await this.login(this.credentials.username, this.credentials.passwordEncrypted);
+      this.handlers.onOpen();
+    } catch (error) {
+      this.handlers.onError(error as ServerError);
     }
   }
 
-  _onSocketMessage(event: MessageEvent) {
+  private onSocketMessage(event: MessageEvent) {
     if (event.data instanceof ArrayBuffer) {
       const parsed = parseBinaryMessage(event.data);
       console.log('<===', parsed)
       if (parsed.id === 0) {
-        this._handleServerMessage(parsed);
+        this.handleServerMessage(parsed);
       } else {
-        this._handleServerResponse(parsed);
+        this.handleServerResponse(parsed);
       }
     } else {
       console.log("Received unknown message, ignoring it.", event)
     }
   }
 
-  _handleServerMessage({ command, body }: Message) {
+  private handleServerMessage({ command, body }: Message) {
     switch (command) {
       case COMMANDS.FILES_HISTORY_REPORT:
         if (this.historyReportListeners) {
@@ -77,7 +82,7 @@ export default class WebSocketClient {
     }
   }
 
-  _handleServerResponse(message: Message) {
+  private handleServerResponse(message: Message) {
     const handler = this.messageHandlers[message.id];
     if (handler) {
       const body = message.body ? JSON.parse(message.body) : null;
@@ -90,7 +95,7 @@ export default class WebSocketClient {
     }
   }
 
-  _send(command: number, body: string): Promise<any> {
+  private send(command: number, body: string): Promise<any> {
     const id = ++this.messageId;
 
     let promiseResolve: (val: any) => void;
@@ -110,36 +115,57 @@ export default class WebSocketClient {
     return promise;
   }
 
+  private onClose() {
+    this.handlers.onClose();
+    // @ts-ignore
+    this.reconnectTimeout = setTimeout(() => {
+      this.socket = this.buildWebSocket();
+    })
+  }
+
+  private onError(event: Event) {
+    console.log("Received WebSocket error", event);
+    this.handlers.onError({ type: 'UNKNOWN', message: 'Connection failed.' });
+    this.socket.close();
+  }
+
   registerHistoryReportHandler(handler: (report: FilesHistoryReport) => void) {
     this.historyReportListeners = handler;
   }
 
+  close() {
+    this.socket.close();
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+  }
+
   login(username: string, password: string) {
-    return this._send(COMMANDS.LOGIN, JSON.stringify({ username, password, subscribeOnDownloadingFilesReport: true }));
+    return this.send(COMMANDS.LOGIN, JSON.stringify({ username, password, subscribeOnDownloadingFilesReport: true }));
   }
 
   downloadFile(url: string, fileName: string, path?: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.DOWNLOAD_URL, JSON.stringify({url, fileName, path}));
+    return this.send(COMMANDS.DOWNLOAD_URL, JSON.stringify({url, fileName, path}));
   }
 
   getFilesHistory(page: number, size: number): Promise<Page<HistoryFile>> {
-    return this._send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({page, size}));
+    return this.send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({page, size}));
   }
 
   stopDownloading(fileId: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.STOP_DOWNLOADING, JSON.stringify({fileId}));
+    return this.send(COMMANDS.STOP_DOWNLOADING, JSON.stringify({fileId}));
   }
 
   resumeDownloading(fileId: string): Promise<HistoryFile> {
-    return this._send(COMMANDS.RESUME_DOWNLOADING, JSON.stringify({fileId}));
+    return this.send(COMMANDS.RESUME_DOWNLOADING, JSON.stringify({fileId}));
   }
 
   deleteFile(fileId: string) {
-    return this._send(COMMANDS.DELETE_FILE, JSON.stringify({ fileId }))
+    return this.send(COMMANDS.DELETE_FILE, JSON.stringify({ fileId }))
   }
 
   listFolders(path: string | null): Promise<ListFoldersResponse> {
-    return this._send(COMMANDS.LIST_FOLDERS, JSON.stringify({path}));
+    return this.send(COMMANDS.LIST_FOLDERS, JSON.stringify({path}));
   }
 }
 
@@ -148,7 +174,7 @@ export const buildOnWebSocketClosedHandler = (setConnection: (connection: Connec
     connected: false,
     connecting: false,
     failedToConnectReason: 'Connection closed.',
-    client: undefined,
+    client: this,
     setConnection
   })
 }
@@ -158,7 +184,7 @@ export const buildOnWebSocketErrorHandler = (setConnection: (connection: Connect
     connected: false,
     connecting: false,
     failedToConnectReason: error.message,
-    client: undefined,
+    client: this,
     setConnection
   })
 }

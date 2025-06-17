@@ -1,11 +1,11 @@
 import React, {EventHandler, useContext, useState} from "react";
-import { TextField } from "@/ui/components/TextField";
-import { Button } from "@/ui/components/Button";
-import { FeatherAlertCircle } from "@subframe/core";
-import { ConnectionContext, UserCredentialsContext } from "./context";
-import WebSocketClient, { buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler } from "./api/client";
-import browserClient, { UserCredentials } from "./browserClient.tsx";
-import { sha256 } from "js-sha256";
+import {TextField} from "@/ui/components/TextField";
+import {Button} from "@/ui/components/Button";
+import {FeatherAlertCircle} from "@subframe/core";
+import {ConnectionContext, UserCredentialsContext} from "./context";
+import WebSocketClient, {buildOnWebSocketClosedHandler, buildOnWebSocketErrorHandler} from "./api/client";
+import browserClient, {UserCredentials} from "./browserClient.tsx";
+import {sha256} from "js-sha256";
 
 export default function LoginCard() {
   const { setCredentials } = useContext(UserCredentialsContext);
@@ -122,7 +122,7 @@ export default function LoginCard() {
       passwordEncrypted: sha256(password + username.toLowerCase())
     }
 
-    const client = new WebSocketClient(`ws://${address}/websocket`, newCredentials, {
+    const client = new WebSocketClient(newCredentials, {
       onOpen() {
         client.handlers = {
           onOpen() {},
