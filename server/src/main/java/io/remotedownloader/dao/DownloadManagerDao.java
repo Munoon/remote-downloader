@@ -48,7 +48,12 @@ public class DownloadManagerDao {
 
         for (DownloadingFile file : filesStorageDao.getAllFiles()) {
             if (file.status == DownloadingFileStatus.DOWNLOADING) {
-                resumeDownloading(null, null, file);
+                resumeDownloading(null, null, file)
+                        .exceptionally(e -> {
+                            log.warn("Failed to resume downloading file '{}' after boot", file.name, e);
+                            filesStorageDao.updateFile(file.withStatus(DownloadingFileStatus.ERROR));
+                            return null;
+                        });
             }
         }
     }
