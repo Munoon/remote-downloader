@@ -1,13 +1,20 @@
-import React, {useContext, useEffect, useState, MouseEventHandler, EventHandler} from "react";
-import { DownloadPrompt } from "./ui";
+import React, {EventHandler, MouseEventHandler, useContext, useEffect, useState} from "react";
+import {DownloadPrompt} from "./ui";
 import * as util from "./util";
-import { ConnectionContext, ConnectionContextType, DownloadFilePathContext, HistoryFilesContext, PendingDownloadContext, UserCredentialsContext } from "./context";
-import browserClient, { PendingDownload, UserCredentials } from "./browserClient.tsx";
+import {
+  ConnectionContext,
+  ConnectionContextType,
+  DownloadFilePathContext,
+  HistoryFilesContext,
+  PendingDownloadContext,
+  UserCredentialsContext
+} from "./context";
+import browserClient, {PendingDownload, UserCredentials} from "./browserClient.tsx";
 import FilePathSelector from "./FilePathSelector";
-import { Button } from "./ui/components/Button";
-import { Tooltip as MessageTooltip } from "./ui/components/Tooltip";
-import { FeatherCloud, Tooltip } from "@subframe/core";
-import { Loader } from "./ui/components/Loader";
+import {Button} from "./ui/components/Button";
+import {Tooltip as MessageTooltip} from "./ui/components/Tooltip";
+import {FeatherCloud, Tooltip} from "@subframe/core";
+import {Loader} from "./ui/components/Loader";
 
 export default function PendingDownloadComponent({ pendingDownload }: { pendingDownload: PendingDownload }) {
   const historyFilesContext = useContext(HistoryFilesContext);
@@ -73,14 +80,12 @@ export default function PendingDownloadComponent({ pendingDownload }: { pendingD
     const path = filePath.length === 1 ? undefined : filePath.slice(1).join('/');
     connection.client.downloadFile(url, fileName, path)
       .then(newFile => {
-        debugger;
         historyFilesContext.prependFile(newFile);
 
         browserClient.removePendingDownload(pendingDownload)
           .then(pendingDownloads => setPendingDownloads(pendingDownloads));
       })
       .catch((error: ServerError) => {
-        debugger;
         setLoading(false);
         setErrorMessage(error.message);
       })
