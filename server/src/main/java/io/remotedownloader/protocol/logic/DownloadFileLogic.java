@@ -17,7 +17,7 @@ public class DownloadFileLogic {
     }
 
     public StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg, String username) {
-        DownloadUrlRequestDTO req = msg.parseJson(DownloadUrlRequestDTO.class);
+        DownloadUrlRequestDTO req = msg.parseJsonAndValidate(DownloadUrlRequestDTO.class);
         CompletableFuture<Void> future = downloadManagerDao.download(ctx, msg, req, username);
         BaseMessageHandler.handleException(future, ctx, msg);
         return null;

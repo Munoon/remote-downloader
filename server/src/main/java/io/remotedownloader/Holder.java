@@ -19,7 +19,11 @@ public class Holder {
     public final SessionDao sessionDao;
 
     public Holder() {
-        this.serverProperties = new ServerProperties();
+        this(new ServerProperties());
+    }
+
+    public Holder(ServerProperties serverProperties) {
+        this.serverProperties = serverProperties;
         this.transportTypeHolder = new TransportTypeHolder(serverProperties);
         this.threadPoolsHolder = new ThreadPoolsHolder();
         this.storageDao = new StorageDao(serverProperties, threadPoolsHolder);

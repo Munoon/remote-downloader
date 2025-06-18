@@ -22,6 +22,10 @@ public class RemoteDownloader {
                 new DownloadingFilesReportWorker(holder),
                 1, 1, TimeUnit.SECONDS);
 
+        if (!holder.userDao.hasAdminUser()) {
+            holder.userDao.createAdmin();
+        }
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 httpServer.stop();

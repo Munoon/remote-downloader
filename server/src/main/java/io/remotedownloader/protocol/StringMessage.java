@@ -10,11 +10,19 @@ public record StringMessage(
         short command,
         String data
 ) {
-    public <T extends Validatable> T parseJson(Class<T> clazz) {
+    public <T extends Validatable> T parseJsonAndValidate(Class<T> clazz) {
         try {
             T t = JsonUtil.MAPPER.readValue(data, clazz);
             t.validate();
             return t;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public <T> T parseJson(Class<T> clazz) {
+        try {
+            return JsonUtil.MAPPER.readValue(data, clazz);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

@@ -19,10 +19,6 @@ public class UserDao {
     public UserDao(StorageDao storageDao) {
         this.storageDao = storageDao;
         this.users = new ConcurrentHashMap<>(storageDao.readAllRecords(StorageModel.USER));
-
-        if (!hasAdminUser()) {
-            createAdmin();
-        }
     }
 
     public void saveUser(User user) {
@@ -34,7 +30,7 @@ public class UserDao {
         return users.get(username);
     }
 
-    private void createAdmin() {
+    public User createAdmin() {
         try {
             String username = "admin";
 
@@ -62,12 +58,14 @@ public class UserDao {
                     + "Password: " + password + "\n"
                     + "===================================\n";
             System.out.print(consoleMessage);
+
+            return user;
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Failed to create admin user: SHA-256 not supported.", e);
         }
     }
 
-    private boolean hasAdminUser() {
+    public boolean hasAdminUser() {
         User admin = users.get("admin");
         if (admin != null && admin.isAdmin()) {
             return true;

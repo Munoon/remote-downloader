@@ -18,7 +18,7 @@ public class DeleteFileLogic {
     }
 
     public StringMessage handleRequest(StringMessage req, String username) {
-        String fileId = req.parseJson(FileIdRequestDTO.class).fileId();
+        String fileId = req.parseJsonAndValidate(FileIdRequestDTO.class).fileId();
 
         DownloadingFile file = filesStorageDao.getById(fileId);
         if (file == null || !username.equals(file.ownerUsername)) {
