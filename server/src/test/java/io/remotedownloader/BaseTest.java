@@ -4,13 +4,14 @@ import io.remotedownloader.model.User;
 import io.remotedownloader.server.HttpServer;
 import io.remotedownloader.util.WebClient;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.stream.Stream;
 
 public abstract class BaseTest {
@@ -28,7 +29,23 @@ public abstract class BaseTest {
         holder = new Holder(properties);
         httpServer = new HttpServer(holder);
         httpServer.start();
+    }
+
+    @BeforeEach
+    void setUp() {
         adminUser = holder.userDao.createAdmin();
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        holder.downloadManagerDao.clear();
+        holder.filesStorageDao.clear();
+        holder.userDao.clear();
+
+        String folder = holder.serverProperties.getProperty("download.folder");
+        try (Stream<Path> paths = Files.walk(Path.of(folder))) {
+            paths.skip(1).map(Path::toFile).forEach(File::delete);
+        }
     }
 
     @AfterAll
@@ -40,9 +57,5 @@ public abstract class BaseTest {
         holder.transportTypeHolder.close();
 
         Files.deleteIfExists(Path.of(holder.serverProperties.getProperty("storage.file")));
-
-        try (Stream<Path> paths = Files.walk(Path.of(holder.serverProperties.getProperty("download.folder")))) {
-            paths.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
-        }
     }
 }

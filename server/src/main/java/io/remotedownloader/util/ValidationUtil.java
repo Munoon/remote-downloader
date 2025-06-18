@@ -46,4 +46,15 @@ public class ValidationUtil {
             }
         }
     }
+
+    public static void pathAllowedChars(String value, String fieldName) {
+        if (value != null) {
+            for (int i = 0; i < value.length(); i++) {
+                char c = value.charAt(i);
+                if (c == '\0') {
+                    throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " contain unallowed char.");
+                }
+            }
+        }
+    }
 }

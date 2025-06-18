@@ -12,7 +12,6 @@ import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.ListFileDTO;
-import io.remotedownloader.model.dto.ListFoldersResponseDTO;
 import io.remotedownloader.protocol.ErrorException;
 import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
@@ -23,6 +22,7 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
 
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -135,7 +135,7 @@ public class DownloadManagerDao {
         });
     }
 
-    public CompletableFuture<ListFoldersResponseDTO> listFolders(String path) {
+    public CompletableFuture<List<ListFileDTO>> listFolders(String path) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path downloadFolder = resolveDownloadFolder();
@@ -144,10 +144,11 @@ public class DownloadManagerDao {
                 }
 
                 try (Stream<Path> files = Files.list(downloadFolder)) {
-                    List<ListFileDTO> result = files
+                    return files
                             .map(file -> new ListFileDTO(Files.isDirectory(file), file.getFileName().toString()))
+                            // folders should always goes first
+                            .sorted((f1, f2) -> Boolean.compare(f2.folder(), f1.folder()))
                             .toList();
-                    return new ListFoldersResponseDTO(result);
                 }
             } catch (Exception e) {
                 throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.", e);
@@ -158,6 +159,8 @@ public class DownloadManagerDao {
     private static SeekableByteChannel createFileChannel(Path filePath) {
         try {
             return Files.newByteChannel(filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        } catch (FileAlreadyExistsException e) {
+            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "The file with this name already exists.", e);
         } catch (Exception e) {
             throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.", e);
         }
@@ -205,5 +208,9 @@ public class DownloadManagerDao {
             throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Download folder is a file.");
         }
         return downloadFolder;
+    }
+
+    public void clear() {
+        downloadingFiles.clear();
     }
 }

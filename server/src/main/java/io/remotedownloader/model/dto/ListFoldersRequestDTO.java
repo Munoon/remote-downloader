@@ -10,5 +10,6 @@ public record ListFoldersRequestDTO(
         // TODO improve
         ValidationUtil.notEmpty(path, "Path");
         ValidationUtil.maxLength(path, 1_000, "Path");
+        ValidationUtil.pathAllowedChars(path, "Path");
     }
 }

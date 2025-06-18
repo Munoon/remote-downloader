@@ -78,4 +78,8 @@ public class UserDao {
         }
         return false;
     }
+
+    public void clear() {
+        users.clear();
+    }
 }

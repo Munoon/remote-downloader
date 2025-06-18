@@ -41,8 +41,9 @@ public abstract class BaseMessageHandler extends SimpleChannelInboundHandler<Str
 
     public static void handleException(CompletableFuture<?> future, ChannelHandlerContext ctx, StringMessage req) {
         future.exceptionally(e -> {
-            if (e instanceof ErrorException errorException) {
-                log.warn("Handled error while processing WebSocket request", e);
+            Throwable cause = e.getCause();
+            if (cause instanceof ErrorException errorException) {
+                log.warn("Handled error while processing WebSocket request", cause);
                 Error error = errorException.error;
                 ctx.writeAndFlush(StringMessage.error(req, error.type(), error.message()));
             } else {

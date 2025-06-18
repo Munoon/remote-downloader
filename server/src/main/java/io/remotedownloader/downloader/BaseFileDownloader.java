@@ -14,6 +14,7 @@ import org.asynchttpclient.HttpResponseStatus;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public abstract class BaseFileDownloader implements AsyncHandler<Object> {
@@ -25,6 +26,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     protected DownloadingFile file;
     private long previousChunkTime;
+    private boolean aborted;
 
     protected BaseFileDownloader(String url,
                                  Path filePath,
@@ -45,6 +47,14 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         } else {
             log.info("Received {} response code from server when trying to download {}. Aborting...", statusCode, filePath);
             onStartFailure();
+            try {
+                // ideally, we should do this in a non-Netty thread,
+                // but this is a rare operation, so it's not critical
+                Files.deleteIfExists(filePath);
+            } catch (Exception e) {
+                log.warn("Failed to delete the file '{}' after failing to download it", filePath, e);
+            }
+            aborted = true;
             return State.ABORT;
         }
     }
@@ -112,10 +122,12 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         } catch (IOException e) {
             log.warn("Failed to close a file", e);
         }
-        if (file != null) {
-            filesStorageDao.updateFile(file.withStatus(status));
-        } else {
-            onStartFailure();
+        if (!aborted) {
+            if (file != null) {
+                filesStorageDao.updateFile(file.withStatus(status));
+            } else {
+                onStartFailure();
+            }
         }
     }
 

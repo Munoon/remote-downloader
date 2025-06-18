@@ -36,7 +36,7 @@ public class DownloadingFilesReportWorker implements Runnable {
             DownloadingFile[] files = filesStorageDao.getUserFiles(subscription.username());
             List<DownloadFileDTO> filteredFiles = new ArrayList<>(files.length);
             for (DownloadingFile file : files) {
-                if (file.status == DownloadingFileStatus.DOWNLOADING || file.updatedAt > lastReported) {
+                if (file.status == DownloadingFileStatus.DOWNLOADING || file.updatedAt >= lastReported) {
                     filteredFiles.add(new DownloadFileDTO(file));
                 }
             }

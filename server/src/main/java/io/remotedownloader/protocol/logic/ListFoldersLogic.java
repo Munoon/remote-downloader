@@ -19,7 +19,8 @@ public class ListFoldersLogic {
 
     public StringMessage handleRequest(ChannelHandlerContext ctx, StringMessage msg) {
         ListFoldersRequestDTO req = msg.parseJsonAndValidate(ListFoldersRequestDTO.class);
-        CompletableFuture<ListFoldersResponseDTO> completableFuture = downloadManagerDao.listFolders(req.path());
+        CompletableFuture<ListFoldersResponseDTO> completableFuture = downloadManagerDao.listFolders(req.path())
+                        .thenApply(ListFoldersResponseDTO::new);
         BaseMessageHandler.respond(completableFuture, ctx, msg);
         return null;
     }

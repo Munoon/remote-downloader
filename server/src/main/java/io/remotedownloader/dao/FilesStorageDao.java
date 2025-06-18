@@ -104,4 +104,9 @@ public class FilesStorageDao {
     public Collection<DownloadingFile> getAllFiles() {
         return downloadingFiles.values();
     }
+
+    public void clear() {
+        downloadingFiles.clear();
+        userFiles.clear();
+    }
 }

@@ -28,6 +28,11 @@ import io.remotedownloader.BaseTest;
 import io.remotedownloader.model.User;
 import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
+import io.remotedownloader.model.dto.Error;
+import io.remotedownloader.model.dto.FileIdRequestDTO;
+import io.remotedownloader.model.dto.FilesHistoryReportDTO;
+import io.remotedownloader.model.dto.ListFoldersRequestDTO;
+import io.remotedownloader.model.dto.ListFoldersResponseDTO;
 import io.remotedownloader.model.dto.LoginRequestDTO;
 import io.remotedownloader.protocol.ProtocolCommands;
 import io.remotedownloader.protocol.ProtocolEncoderDecoder;
@@ -39,7 +44,9 @@ import java.net.URI;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -109,17 +116,52 @@ public class WebClient {
         return getMessage(id).parseJson(DownloadFileDTO.class);
     }
 
+    public WebClient stopDownloading(String fileId) {
+        return send(ProtocolCommands.STOP_DOWNLOADING, new FileIdRequestDTO(fileId));
+    }
+
+    public WebClient deleteFile(String fileId) {
+        return send(ProtocolCommands.DELETE_FILE, new FileIdRequestDTO(fileId));
+    }
+
+    public FilesHistoryReportDTO parseFilesHistoryReport(int id) {
+        return getMessage(id).parseJson(FilesHistoryReportDTO.class);
+    }
+
+    public WebClient listFolders(String path) {
+        return send(ProtocolCommands.LIST_FOLDERS, new ListFoldersRequestDTO(path));
+    }
+
+    public ListFoldersResponseDTO parseListFoldersResponse(int id) {
+        return getMessage(id).parseJson(ListFoldersResponseDTO.class);
+    }
+
     private WebClient send(short command, Object data) {
         StringMessage msg = new StringMessage(++commandId, command, JsonUtil.writeValueAsString(data));
         channel.writeAndFlush(msg);
         return this;
     }
 
+    public void verifyError(int id, Error.ErrorTypes type, String message) {
+        ArgumentCaptor<StringMessage> messageCaptor = ArgumentCaptor.forClass(StringMessage.class);
+        verify(messageHandler, timeout(500).times(1))
+                .message(argThat(m -> m.id() == id && m.command() == ProtocolCommands.ERROR));
+        verify(messageHandler, atLeastOnce()).message(messageCaptor.capture());
+
+        for (StringMessage msg : messageCaptor.getAllValues()) {
+            if (msg.id() == id && msg.command() == ProtocolCommands.ERROR) {
+                assertEquals(new Error(type, message), msg.parseJson(Error.class));
+                return;
+            }
+        }
+        throw new RuntimeException("Message is not found.");
+    }
+
     private StringMessage getMessage(int id) {
         ArgumentCaptor<StringMessage> messageCaptor = ArgumentCaptor.forClass(StringMessage.class);
         verify(messageHandler, timeout(500).times(1))
                 .message(argThat(m -> m.id() == id && m.command() != ProtocolCommands.ERROR));
-        verify(messageHandler).message(messageCaptor.capture());
+        verify(messageHandler, atLeastOnce()).message(messageCaptor.capture());
 
         for (StringMessage msg : messageCaptor.getAllValues()) {
             if (msg.id() == id && msg.command() != ProtocolCommands.ERROR) {
