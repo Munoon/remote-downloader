@@ -19,6 +19,18 @@ public class ValidationUtil {
         }
     }
 
+    public static void min(int value, int minValue, String fieldName) {
+        if (value < minValue) {
+            throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " should be more than " + minValue + '.');
+        }
+    }
+
+    public static void max(int value, int maxValue, String fieldName) {
+        if (value > maxValue) {
+            throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " should be less than " + maxValue + '.');
+        }
+    }
+
     public static void notEmpty(String value, String fieldName) {
         if (value != null && value.isEmpty()) {
             throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " should not be empty.");

@@ -1,5 +1,6 @@
 package io.remotedownloader.util;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -31,9 +32,11 @@ import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FileIdRequestDTO;
 import io.remotedownloader.model.dto.FilesHistoryReportDTO;
+import io.remotedownloader.model.dto.GetFilesHistoryRequestDTO;
 import io.remotedownloader.model.dto.ListFoldersRequestDTO;
 import io.remotedownloader.model.dto.ListFoldersResponseDTO;
 import io.remotedownloader.model.dto.LoginRequestDTO;
+import io.remotedownloader.model.dto.Page;
 import io.remotedownloader.protocol.ProtocolCommands;
 import io.remotedownloader.protocol.ProtocolEncoderDecoder;
 import io.remotedownloader.protocol.StringMessage;
@@ -134,6 +137,14 @@ public class WebClient {
 
     public ListFoldersResponseDTO parseListFoldersResponse(int id) {
         return getMessage(id).parseJson(ListFoldersResponseDTO.class);
+    }
+
+    public WebClient getFiles(int page, int size) {
+        return send(ProtocolCommands.GET_FILES_HISTORY, new GetFilesHistoryRequestDTO(page, size));
+    }
+
+    public Page<DownloadFileDTO> parseFilesPage(int id) {
+        return getMessage(id).parseJson(new TypeReference<>() {});
     }
 
     private WebClient send(short command, Object data) {

@@ -8,6 +8,7 @@ import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FilesHistoryReportDTO;
 import io.remotedownloader.model.dto.ListFoldersResponseDTO;
+import io.remotedownloader.model.dto.Page;
 import io.remotedownloader.util.WebClient;
 import io.remotedownloader.worker.DownloadingFilesReportWorker;
 import org.junit.jupiter.api.Test;
@@ -54,7 +55,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "example file.txt", null);
             DownloadFileDTO file = webClient.parseDownloadFile(1);
@@ -113,7 +113,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
@@ -191,7 +190,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", "subFolderA/subFolderB");
             DownloadFileDTO file = webClient.parseDownloadFile(1);
@@ -258,7 +256,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
@@ -328,7 +325,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
             verify(downloadFileHandler, timeout(500).times(1)).handle(any());
@@ -385,7 +381,6 @@ public class DownloadFileTest extends BaseTest {
         fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
-            webClient.reset();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
@@ -503,6 +498,87 @@ public class DownloadFileTest extends BaseTest {
                 .verifyError(2, Error.ErrorTypes.VALIDATION, "Path is too long.");
         webClient.listFolders("a\0b")
                 .verifyError(3, Error.ErrorTypes.VALIDATION, "Path contain unallowed char.");
+    }
+
+    @Test
+    void getFilesHistory() throws InterruptedException, IOException {
+        byte[] fileContent = "This is example file content.".getBytes(StandardCharsets.UTF_8);
+        class DownloadFileHandler implements HttpHandler {
+            @Override
+            public void handle(HttpExchange exchange) throws IOException {
+                try (exchange) {
+                    exchange.sendResponseHeaders(200, fileContent.length);
+                    exchange.getResponseBody().write(fileContent);
+                    exchange.getResponseBody().flush();
+                }
+            }
+        }
+
+        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
+        HttpServer fileServer = HttpServer.create(
+                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
+        fileServer.start();
+
+        WebClient webClient = loggedAdminWebClient();
+        try {
+            webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file1.txt", null);
+            DownloadFileDTO file1 = webClient.parseDownloadFile(1);
+            assertEquals("file1.txt", file1.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file1.status());
+            assertEquals(fileContent.length, file1.totalBytes());
+
+            webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file2.txt", null);
+            DownloadFileDTO file2 = webClient.parseDownloadFile(2);
+            assertEquals("file2.txt", file2.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file2.status());
+            assertEquals(fileContent.length, file2.totalBytes());
+
+            Page<DownloadFileDTO> page = webClient.getFiles(0, 20).parseFilesPage(3);
+            assertEquals(2, page.totalElements());
+            assertNotNull(page.content());
+            assertEquals(2, page.content().length);
+            DownloadFileDTO file = page.content()[0];
+            assertEquals(file1.id(), file.id());
+            assertEquals("file1.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADED, file.status());
+            assertEquals(fileContent.length, file.totalBytes());
+            assertEquals(fileContent.length, file.downloadedBytes());
+            file = page.content()[1];
+            assertEquals(file2.id(), file.id());
+            assertEquals("file2.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADED, file.status());
+            assertEquals(fileContent.length, file.totalBytes());
+            assertEquals(fileContent.length, file.downloadedBytes());
+
+            page = webClient.getFiles(0, 1).parseFilesPage(4);
+            assertEquals(2, page.totalElements());
+            assertNotNull(page.content());
+            assertEquals(1, page.content().length);
+            file = page.content()[0];
+            assertEquals(file1.id(), file.id());
+            assertEquals("file1.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADED, file.status());
+            assertEquals(fileContent.length, file.totalBytes());
+            assertEquals(fileContent.length, file.downloadedBytes());
+
+            page = webClient.getFiles(1, 1).parseFilesPage(5);
+            assertEquals(2, page.totalElements());
+            assertNotNull(page.content());
+            assertEquals(1, page.content().length);
+            file = page.content()[0];
+            assertEquals(file2.id(), file.id());
+            assertEquals("file2.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADED, file.status());
+            assertEquals(fileContent.length, file.totalBytes());
+            assertEquals(fileContent.length, file.downloadedBytes());
+
+            page = webClient.getFiles(2, 1).parseFilesPage(6);
+            assertEquals(2, page.totalElements());
+            assertNotNull(page.content());
+            assertEquals(0, page.content().length);
+        } finally {
+            fileServer.stop(0);
+        }
     }
 
     private static void verifyFileContent(String fileName, String expectedContent) throws IOException {

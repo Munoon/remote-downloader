@@ -1,6 +1,7 @@
 package io.remotedownloader.protocol;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.Validatable;
 import io.remotedownloader.util.JsonUtil;
@@ -23,6 +24,14 @@ public record StringMessage(
     public <T> T parseJson(Class<T> clazz) {
         try {
             return JsonUtil.MAPPER.readValue(data, clazz);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public <T> T parseJson(TypeReference<T> typeReference) {
+        try {
+            return JsonUtil.MAPPER.readValue(data, typeReference);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
