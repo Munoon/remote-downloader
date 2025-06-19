@@ -21,7 +21,6 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.remotedownloader.util.TestUtil.assertWithReties;
 import static io.remotedownloader.util.WebClient.loggedAdminWebClient;
@@ -31,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -369,16 +370,14 @@ public class DownloadFileTest extends BaseTest {
 
     @Test
     void resumeDownloading() throws Throwable {
-        AtomicInteger contentLength = new AtomicInteger(5);
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                exchange.sendResponseHeaders(200, contentLength.get());
-            }
-        }
 
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
+        HttpHandler downloadFileHandler = mock(HttpHandler.class);
+        doAnswer(answ -> {
+            HttpExchange exchange = answ.getArgument(0, HttpExchange.class);
+            exchange.sendResponseHeaders(200, 5);
+            return null;
+        }).when(downloadFileHandler).handle(any());
         HttpServer fileServer = HttpServer.create(
                 new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
         fileServer.start();
@@ -425,20 +424,25 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(2, file.downloadedBytes());
 
             Mockito.clearInvocations(downloadFileHandler);
-            contentLength.set(3);
+            doAnswer(answ -> {
+                HttpExchange e = answ.getArgument(0, HttpExchange.class);
+                e.getResponseHeaders().set("Content-Range", "bytes=2-5/6");
+                e.sendResponseHeaders(206, 4);
+                return null;
+            }).when(downloadFileHandler).handle(any());
             file = webClient.resumeDownloading(file.id()).parseDownloadFile(2);
             assertEquals("file.txt", file.name());
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
-            assertEquals(5, file.totalBytes());
+            assertEquals(6, file.totalBytes());
             assertEquals(2, file.downloadedBytes());
 
             exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
             verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
             exchange = exchangeCaptor.getValue();
-            assertEquals("bytes=3-", exchange.getRequestHeaders().getFirst("Range"));
-            
+            assertEquals("bytes=2-", exchange.getRequestHeaders().getFirst("Range"));
+
             responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'c', 'd', 'e'});
+            responseBody.write(new byte[]{'c', 'd', 'e', 'j'});
             responseBody.flush();
             exchange.close();
 
@@ -452,10 +456,10 @@ public class DownloadFileTest extends BaseTest {
                 DownloadFileDTO reportedFile = report.files().getFirst();
                 assertEquals("file.txt", reportedFile.name());
                 assertEquals(DownloadingFileStatus.DOWNLOADED, reportedFile.status());
-                assertEquals(5, reportedFile.totalBytes());
-                assertEquals(5, reportedFile.downloadedBytes());
+                assertEquals(6, reportedFile.totalBytes());
+                assertEquals(6, reportedFile.downloadedBytes());
             });
-            verifyFileContent("file.txt", "abcde");
+            verifyFileContent("file.txt", "abcdej");
         } finally {
             fileServer.stop(0);
         }

@@ -105,7 +105,7 @@ public class DownloadManagerDao {
 
             ResumeFileDownloader handler = new ResumeFileDownloader(
                     ctx, msg, file, filePath, fileChannel, filesStorageDao);
-            startDownloading(file.url, file.id, handler, downloadedBytes + 1);
+            startDownloading(file.url, file.id, handler, downloadedBytes);
         }, threadPoolsHolder.blockingTasksExecutor);
     }
 

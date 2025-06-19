@@ -1,6 +1,5 @@
 package io.remotedownloader.downloader;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
@@ -14,17 +13,17 @@ import org.asynchttpclient.HttpResponseStatus;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     private static final Logger log = LogManager.getLogger(BaseFileDownloader.class);
     private final String url;
-    private final Path filePath;
     private final SeekableByteChannel fileChannel;
+    protected final Path filePath;
     protected final FilesStorageDao filesStorageDao;
 
     protected DownloadingFile file;
+    private HttpResponseStatus responseStatus;
     private long previousChunkTime;
     private volatile boolean aborted;
 
@@ -40,6 +39,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     @Override
     public State onStatusReceived(HttpResponseStatus responseStatus) {
+        this.responseStatus = responseStatus;
         int statusCode = responseStatus.getStatusCode();
         if (statusCode >= 200 && statusCode < 300) {
             log.info("Start downloading '{}' to '{}'", url, filePath);
@@ -47,13 +47,6 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         } else {
             log.info("Received {} response code from server when trying to download {}. Aborting...", statusCode, filePath);
             onStartFailure();
-            try {
-                // ideally, we should do this in a non-Netty thread,
-                // but this is a rare operation, so it's not critical
-                Files.deleteIfExists(filePath);
-            } catch (Exception e) {
-                log.warn("Failed to delete the file '{}' after failing to download it", filePath, e);
-            }
             markAborted();
             return State.ABORT;
         }
@@ -61,8 +54,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     @Override
     public State onHeadersReceived(HttpHeaders headers) {
-        long contentLength = getContentLength(headers);
-        onStartDownloading(contentLength);
+        onStartDownloading(this.responseStatus, headers);
         return State.CONTINUE;
     }
 
@@ -105,11 +97,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         log.warn("Failed to download '{}'", filePath, t);
         closeFile();
         if (!aborted) {
-            if (file != null) {
-                markFile(DownloadingFileStatus.ERROR);
-            } else {
-                onStartFailure();
-            }
+            onError();
         }
     }
 
@@ -126,7 +114,8 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     protected abstract void onStartFailure();
-    protected abstract void onStartDownloading(long fileLength);
+    protected abstract void onStartDownloading(HttpResponseStatus status, HttpHeaders headers);
+    protected abstract void onError();
 
     private void closeFile() {
         try {
@@ -138,18 +127,6 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     protected void markFile(DownloadingFileStatus status) {
         filesStorageDao.updateFile(file.withStatus(status));
-    }
-
-    private static long getContentLength(HttpHeaders headers) {
-        try {
-            String contentLengthValue = headers.get(HttpHeaderNames.CONTENT_LENGTH);
-            if (contentLengthValue != null) {
-                return Long.parseLong(contentLengthValue);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to get file content length", e);
-        }
-        return -1;
     }
 
     public void markAborted() {
