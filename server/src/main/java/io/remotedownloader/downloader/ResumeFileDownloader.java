@@ -37,13 +37,13 @@ public class ResumeFileDownloader extends BaseFileDownloader {
             ctx.writeAndFlush(response);
         } else {
             // if ctx == null -> this means, we are resuming downloading files on boot
-            filesStorageDao.updateFile(file.withStatus(DownloadingFileStatus.ERROR));
+            markFile(DownloadingFileStatus.ERROR);
         }
     }
 
     @Override
     protected void onStartDownloading(long fileLength) {
-        if (file.status != DownloadingFileStatus.DOWNLOADING || file.totalBytes != fileLength) {
+        if (file.status != DownloadingFileStatus.DOWNLOADING || file.speedBytesPerMS != 0) {
             this.file = new DownloadingFile(
                     file.id,
                     file.name,
@@ -51,7 +51,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
                     file.url,
                     file.ownerUsername,
                     DownloadingFileStatus.DOWNLOADING,
-                    fileLength,
+                    file.totalBytes,
                     file.createdAt,
                     System.currentTimeMillis(),
                     file.downloadedBytes,

@@ -2,12 +2,14 @@ package io.remotedownloader.dao;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.epoll.Epoll;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.ssl.OpenSsl;
 import io.remotedownloader.ServerProperties;
 import io.remotedownloader.downloader.BaseFileDownloader;
 import io.remotedownloader.downloader.NewFileDownloader;
 import io.remotedownloader.downloader.ResumeFileDownloader;
 import io.remotedownloader.model.DownloadingFile;
+import io.remotedownloader.model.DownloadingFileState;
 import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.DownloadUrlRequestDTO;
 import io.remotedownloader.model.dto.Error;
@@ -17,6 +19,7 @@ import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
@@ -36,7 +39,7 @@ import java.util.stream.Stream;
 
 public class DownloadManagerDao {
     private static final Logger log = LogManager.getLogger(DownloadManagerDao.class);
-    private final ConcurrentMap<String, ListenableFuture<?>> downloadingFiles = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, DownloadingFileState> downloadingFiles = new ConcurrentHashMap<>();
     private final ServerProperties properties;
     private final AsyncHttpClient asyncHttpClient;
     private final FilesStorageDao filesStorageDao;
@@ -107,20 +110,24 @@ public class DownloadManagerDao {
     }
 
     private void startDownloading(String url, String fileId, BaseFileDownloader handler, long rangeOffset) {
-        ListenableFuture<Object> future = asyncHttpClient.prepareGet(url)
-                .setRangeOffset(rangeOffset)
+        BoundRequestBuilder requestBuilder = asyncHttpClient.prepareGet(url)
                 .setFollowRedirect(properties.getFollowRedirect())
-                .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()))
-                .execute(handler);
-        downloadingFiles.put(fileId, future);
+                .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()));
+
+        if (rangeOffset != 0) {
+            requestBuilder.addHeader(HttpHeaderNames.RANGE, "bytes=" + rangeOffset + '-');
+        }
+
+        ListenableFuture<Object> future = requestBuilder.execute(handler);
+        downloadingFiles.put(fileId, new DownloadingFileState(future, handler));
 
         future.addListener(() -> downloadingFiles.remove(fileId), null);
     }
 
     public void stopDownloading(String fileId) {
-        ListenableFuture<?> future = downloadingFiles.remove(fileId);
-        if (future != null) {
-            future.done();
+        DownloadingFileState state = downloadingFiles.remove(fileId);
+        if (state != null) {
+            state.stopDownloading();
         }
     }
 

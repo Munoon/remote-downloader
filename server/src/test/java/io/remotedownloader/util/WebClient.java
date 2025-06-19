@@ -123,6 +123,10 @@ public class WebClient {
         return send(ProtocolCommands.STOP_DOWNLOADING, new FileIdRequestDTO(fileId));
     }
 
+    public WebClient resumeDownloading(String fileId) {
+        return send(ProtocolCommands.RESUME_DOWNLOADING, new FileIdRequestDTO(fileId));
+    }
+
     public WebClient deleteFile(String fileId) {
         return send(ProtocolCommands.DELETE_FILE, new FileIdRequestDTO(fileId));
     }

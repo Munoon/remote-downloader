@@ -27,6 +27,8 @@ public class DownloadingFilesReportWorker implements Runnable {
 
     @Override
     public void run() {
+        long now = System.currentTimeMillis();
+
         for (DownloadingFilesReportSubscription subscription : sessionDao.getDownloadingFilesReportSubscriptions()) {
             ChannelHandlerContext ctx = subscription.ctx();
             if (!ctx.channel().isWritable()) {
@@ -47,6 +49,6 @@ public class DownloadingFilesReportWorker implements Runnable {
             }
         }
 
-        this.lastReported = System.currentTimeMillis();
+        this.lastReported = now;
     }
 }

@@ -26,7 +26,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     protected DownloadingFile file;
     private long previousChunkTime;
-    private boolean aborted;
+    private volatile boolean aborted;
 
     protected BaseFileDownloader(String url,
                                  Path filePath,
@@ -54,7 +54,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
             } catch (Exception e) {
                 log.warn("Failed to delete the file '{}' after failing to download it", filePath, e);
             }
-            aborted = true;
+            markAborted();
             return State.ABORT;
         }
     }
@@ -103,32 +103,41 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     @Override
     public void onThrowable(Throwable t) {
         log.warn("Failed to download '{}'", filePath, t);
-        finishDownloading(DownloadingFileStatus.ERROR);
+        closeFile();
+        if (!aborted) {
+            if (file != null) {
+                markFile(DownloadingFileStatus.ERROR);
+            } else {
+                onStartFailure();
+            }
+        }
     }
 
     @Override
     public Object onCompleted() {
-        log.info("File '{}' has been downloaded", filePath);
-        finishDownloading(DownloadingFileStatus.DOWNLOADED);
+        if (!aborted) {
+            log.info("File '{}' has been downloaded", filePath);
+            if (file != null) {
+                markFile(DownloadingFileStatus.DOWNLOADED);
+            }
+        }
+        closeFile();
         return null;
     }
 
     protected abstract void onStartFailure();
     protected abstract void onStartDownloading(long fileLength);
 
-    private void finishDownloading(DownloadingFileStatus status) {
+    private void closeFile() {
         try {
             fileChannel.close();
         } catch (IOException e) {
             log.warn("Failed to close a file", e);
         }
-        if (!aborted) {
-            if (file != null) {
-                filesStorageDao.updateFile(file.withStatus(status));
-            } else {
-                onStartFailure();
-            }
-        }
+    }
+
+    protected void markFile(DownloadingFileStatus status) {
+        filesStorageDao.updateFile(file.withStatus(status));
     }
 
     private static long getContentLength(HttpHeaders headers) {
@@ -141,5 +150,9 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
             log.warn("Failed to get file content length", e);
         }
         return -1;
+    }
+
+    public void markAborted() {
+        this.aborted = true;
     }
 }
