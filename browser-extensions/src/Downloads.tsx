@@ -14,18 +14,18 @@ import ConnectionError from "./ConnectionError";
 function Downloads() {
   const { connected, client, failedToConnectReason } = useContext(ConnectionContext);
   const { credentials } = useContext(UserCredentialsContext);
-  const [files, setFiles] = useState<HistoryFile[] | undefined>(undefined);
+  const [page, setPage] = useState<Page<HistoryFile> | undefined>(undefined);
   const [pendingDownloads, setPendingDownloads] = useState<PendingDownload[] | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (connected && !files && client) {
+    if (connected && !page && client) {
       client.getFilesHistory(0, 20)
-        .then(files => setFiles(files.content))
+        .then(page => setPage(page))
         .catch((error: ServerError) => setErrorMessage(error.message));
     } else if (!credentials) {
-      if (files) {
-        setFiles(undefined);
+      if (page) {
+        setPage(undefined);
       }
       if (errorMessage) {
         setErrorMessage('');
@@ -38,24 +38,27 @@ function Downloads() {
       client.registerHistoryReportHandler(report => {
         const newFiles = report.files;
 
-        if (files) {
+        if (page) {
+          const files = page.content;
           const result: HistoryFile[] = [...files];
+          let totalElements = page.totalElements;
           for (const newFile of newFiles) {
             const index = files.findIndex(f => f.id === newFile.id);
             if (index === -1) {
+              ++totalElements;
               result.unshift(newFile);
             } else {
               result[index] = newFile;
             }
           }
-          setFiles(result);
+          setPage({ content: result, totalElements: totalElements });
         } else {
-          setFiles(newFiles);
+          setPage({ content: newFiles, totalElements: newFiles.length });
           return;
         }
       });
     }
-  }, [client, files]);
+  }, [client, page]);
 
   useEffect(() => {
     browserClient.getPendingDownloads()
@@ -63,20 +66,28 @@ function Downloads() {
   }, []);
 
   const context = {
-    files: files || [],
-    prependFile: (file: HistoryFile) => setFiles([file, ...(files || [])]),
+    files: page?.content || [],
+    totalFiles: page?.totalElements || 0,
+    prependFile: (file: HistoryFile) => setPage({
+      content: [file, ...(page?.content || [])],
+      totalElements: (page?.totalElements || 0) + 1
+    }),
     updateFile: (file: HistoryFile) => {
-      if (files) {
-        const updated = copyAndReplace(files, f => f.id === file.id, file);
-        setFiles(updated);
+      if (page) {
+        const updated = copyAndReplace(page.content, f => f.id === file.id, file);
+        setPage({ content: updated, totalElements: page.totalElements });
       }
     },
     deleteFile: (id: string) => {
-      if (files) {
-        const updated = deleteElement(files, f => f.id === id);
-        setFiles(updated);
+      if (page) {
+        const updated = deleteElement(page.content, f => f.id === id);
+        setPage({ content: updated, totalElements: page.totalElements - 1 });
       }
-    }
+    },
+    appendPage: (newPage: Page<HistoryFile>) => setPage({
+      content: [...(page?.content || []), ...newPage.content],
+      totalElements: newPage.totalElements
+    })
   };
 
   return (
@@ -89,13 +100,50 @@ function Downloads() {
 
       <ConnectionError />
       {errorMessage && <ErrorMessage text={errorMessage} />}
-      {files && files.map(file => mapFile(file))}
-      {credentials && !files && !errorMessage && <LoadingFileProgress />}
-      {files && files.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && !failedToConnectReason && (
+      <DownloadingFiles setErrorMessage={setErrorMessage} />
+      {credentials && !page && !errorMessage && <LoadingFileProgress />}
+      {page && page.content.length === 0 && !errorMessage && pendingDownloads && pendingDownloads.length === 0 && connected && !failedToConnectReason && (
         <NoDownloads />
       )}
     </HistoryFilesContext.Provider>
   );
+}
+
+function DownloadingFiles({ setErrorMessage }: { setErrorMessage: (msg: string) => void }) {
+  const { client } = useContext(ConnectionContext);
+  const { files, totalFiles, appendPage } = useContext(HistoryFilesContext);
+  const [fetching, setFetching] = useState(false);
+
+  useEffect(() => {
+    const handleScroll: EventListener = (e) => {
+      if (window.innerHeight + document.documentElement.scrollTop !== document.documentElement.offsetHeight) {
+        return;
+      }
+      if (fetching || totalFiles <= files.length || !client) {
+        return;
+      }
+
+      setFetching(true);
+      client.getFilesHistory(files.length, 20)
+        .then(page => appendPage(page))
+        .catch(e => setErrorMessage(e.message))
+        .finally(() => setFetching(false));
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [fetching, files, totalFiles, client]);
+
+  if (!files) {
+    return null;
+  }
+
+  return (
+    <>
+      {files.map(file => mapFile(file))}
+      {totalFiles > files.length && <LoadingFileProgress />}
+    </>
+  )
 }
 
 function mapFile(file: HistoryFile) {

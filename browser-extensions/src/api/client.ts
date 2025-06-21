@@ -169,8 +169,8 @@ export default class WebSocketClient {
     return this.send(COMMANDS.DOWNLOAD_URL, JSON.stringify({url, fileName, path}));
   }
 
-  getFilesHistory(page: number, size: number): Promise<Page<HistoryFile>> {
-    return this.send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({page, size}));
+  getFilesHistory(offset: number, size: number): Promise<Page<HistoryFile>> {
+    return this.send(COMMANDS.GET_FILES_HISTORY, JSON.stringify({offset, size}));
   }
 
   stopDownloading(fileId: string): Promise<HistoryFile> {

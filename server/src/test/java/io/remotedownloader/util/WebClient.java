@@ -62,11 +62,15 @@ public class WebClient {
     private int commandId;
 
     public WebClient() throws InterruptedException {
+        this("127.0.0.1", 18080);
+    }
+
+    public WebClient(String host, int port) throws InterruptedException {
         this.eventExecutors = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
         this.messageHandler = spy(new MessageHandler());
 
         WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
-                URI.create("ws://127.0.0.1:18080/websocket"),
+                URI.create("ws://" + host + ':' + port + "/websocket"),
                 WebSocketVersion.V13,
                 null,
                 true,
@@ -90,7 +94,7 @@ public class WebClient {
                                 messageHandler);
                     }
                 })
-                .connect("127.0.0.1", 18080)
+                .connect(host, port)
                 .sync()
                 .channel();
         handler.handshakeFuture().sync();
@@ -143,8 +147,8 @@ public class WebClient {
         return getMessage(id).parseJson(ListFoldersResponseDTO.class);
     }
 
-    public WebClient getFiles(int page, int size) {
-        return send(ProtocolCommands.GET_FILES_HISTORY, new GetFilesHistoryRequestDTO(page, size));
+    public WebClient getFiles(int offset, int size) {
+        return send(ProtocolCommands.GET_FILES_HISTORY, new GetFilesHistoryRequestDTO(offset, size));
     }
 
     public Page<DownloadFileDTO> parseFilesPage(int id) {

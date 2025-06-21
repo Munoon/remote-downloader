@@ -3,7 +3,7 @@ package io.remotedownloader.model.dto;
 import io.remotedownloader.util.ValidationUtil;
 
 public record GetFilesHistoryRequestDTO(
-        int page,
+        int offset,
         int size
 ) implements Validatable {
     @Override

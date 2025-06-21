@@ -24,10 +24,10 @@ public class GetFilesHistoryLogic {
         DownloadingFile[] files = filesStorageDao.getUserFiles(username);
 
         DownloadingFile[] sortedFiles = Arrays.copyOf(files, files.length);
-        Arrays.sort(sortedFiles, Comparator.comparingLong(f -> f.createdAt));
+        Arrays.sort(sortedFiles, Comparator.<DownloadingFile>comparingLong(f -> f.createdAt).reversed());
 
         int size = req.size();
-        int offset = req.page() * size;
+        int offset = req.offset();
         int pageSize = sortedFiles.length >= offset + size ? size : sortedFiles.length - offset;
 
         DownloadFileDTO[] response = new DownloadFileDTO[pageSize];

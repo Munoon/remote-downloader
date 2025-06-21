@@ -4,10 +4,19 @@ import WebSocketClient from "./api/client";
 
 export const HistoryFilesContext = createContext<{
   files: HistoryFile[],
+  totalFiles: number,
   prependFile: (file: HistoryFile) => void,
   updateFile: (file: HistoryFile) => void,
-  deleteFile: (id: string) => void
-}>({ files: [], prependFile: () => {}, updateFile: () => {}, deleteFile: () => {} });
+  deleteFile: (id: string) => void,
+  appendPage: (page: Page<HistoryFile>) => void
+}>({
+  files: [],
+  totalFiles: 0,
+  prependFile: () => {},
+  updateFile: () => {},
+  deleteFile: () => {},
+  appendPage: () => {}
+});
 
 export const PendingDownloadContext = createContext<{
   pendingDownloads: PendingDownload[],
