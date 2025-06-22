@@ -1,5 +1,6 @@
 package io.remotedownloader.downloader;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -12,6 +13,7 @@ import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 
 import java.io.RandomAccessFile;
@@ -24,6 +26,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
     private static final Logger log = LogManager.getLogger(ResumeFileDownloader.class);
     private final ChannelHandlerContext ctx;
     private final StringMessage msg;
+    private long skipBytesLeft;
 
     public ResumeFileDownloader(ChannelHandlerContext ctx,
                                 StringMessage msg,
@@ -62,7 +65,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
         FileChannel fileChannel;
         try  {
             RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
-            if (fileLength != -1) {
+            if (fileLength > 0) {
                 raf.setLength(fileLength);
             }
             fileChannel = raf.getChannel();
@@ -73,9 +76,11 @@ public class ResumeFileDownloader extends BaseFileDownloader {
             return null;
         }
 
+        this.skipBytesLeft = status.getStatusCode() == PARTIAL_CONTENT.code() ? 0 : file.commitedDownloadedBytes;
+
         if (file.status != DownloadingFileStatus.DOWNLOADING
             || file.speedBytesPerMS != 0
-            || (fileLength != -1 && file.totalBytes != fileLength)) {
+            || (fileLength > 0 && file.totalBytes != fileLength)) {
             this.file = new DownloadingFile(
                     file.id,
                     file.name,
@@ -83,7 +88,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
                     file.url,
                     file.ownerUsername,
                     DownloadingFileStatus.DOWNLOADING,
-                    fileLength != -1 ? fileLength : file.totalBytes,
+                    fileLength > 0 ? fileLength : file.totalBytes,
                     file.commitedDownloadedBytes,
                     file.createdAt,
                     System.currentTimeMillis(),
@@ -99,6 +104,25 @@ public class ResumeFileDownloader extends BaseFileDownloader {
         }
 
         return fileChannel;
+    }
+
+    @Override
+    public State onBodyPartReceived(HttpResponseBodyPart bodyPart) {
+        if (skipBytesLeft == 0) {
+            return super.onBodyPartReceived(bodyPart);
+        }
+
+        ByteBuf byteBuf = bodyPart.getBodyByteBuf();
+        int readableBytes = byteBuf.readableBytes();
+        System.out.println(readableBytes);
+        if (skipBytesLeft >= readableBytes) {
+            skipBytesLeft -= readableBytes;
+            return State.CONTINUE;
+        } else {
+            byteBuf.skipBytes((int) skipBytesLeft);
+            skipBytesLeft = 0;
+            return super.onBodyPartReceived(bodyPart);
+        }
     }
 
     @Override

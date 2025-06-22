@@ -63,7 +63,7 @@ public class NewFileDownloader extends BaseFileDownloader {
         FileChannel fileChannel;
         try  {
             RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
-            if (contentLength != -1) {
+            if (contentLength > 0) {
                 raf.setLength(contentLength);
             }
             fileChannel = raf.getChannel();
@@ -87,7 +87,7 @@ public class NewFileDownloader extends BaseFileDownloader {
                 req.url(),
                 ownerUsername,
                 DownloadingFileStatus.DOWNLOADING,
-                contentLength,
+                contentLength > 0 ? contentLength : -1,
                 0,
                 now,
                 now
