@@ -32,7 +32,7 @@ public class StopDownloadingLogic {
 
         downloadManagerDao.stopDownloading(file.id);
 
-        DownloadingFile updatedFile = file.withStatus(DownloadingFileStatus.PAUSED);
+        DownloadingFile updatedFile = file.commitBytes(DownloadingFileStatus.PAUSED, file.downloadedBytes);
         filesStorageDao.updateFile(updatedFile);
 
         return StringMessage.json(req, new DownloadFileDTO(updatedFile));

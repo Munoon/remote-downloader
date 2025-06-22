@@ -19,16 +19,15 @@ import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
 
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +60,7 @@ public class DownloadManagerDao {
                 .setMaxRequestRetry(properties.getMaxRequestRetry())
                 .setUseOpenSsl(OpenSsl.isAvailable())
                 .setUseNativeTransport(Epoll.isAvailable())
+                .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
 //                .setEventLoopGroup(transportTypeHolder.workerGroup)
                 .build();
         this.asyncHttpClient = new DefaultAsyncHttpClient(httpClientConfig);
@@ -83,12 +83,18 @@ public class DownloadManagerDao {
                                             String username) {
         return CompletableFuture.runAsync(() -> {
             Path filePath = resolveFilePath(req.path(), req.fileName(), true);
-            SeekableByteChannel fileChannel = createFileChannel(filePath);
+            try {
+                Files.createFile(filePath);
+            } catch (FileAlreadyExistsException e) {
+                throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "The file with this name already exists.", e);
+            } catch (Exception e) {
+                throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.", e);
+            }
 
             String fileId = UUID.randomUUID().toString();
 
             NewFileDownloader handler = new NewFileDownloader(
-                    ctx, msg, fileId, username, req, filePath, fileChannel, filesStorageDao);
+                    ctx, msg, fileId, username, req, filePath, filesStorageDao, properties);
             startDownloading(req.url(), fileId, handler, 0);
         }, threadPoolsHolder.blockingTasksExecutor);
     }
@@ -98,13 +104,12 @@ public class DownloadManagerDao {
                                                      DownloadingFile file) {
         return CompletableFuture.runAsync(() -> {
             Path filePath = resolveFilePath(file.path, file.name, false);
-            SeekableByteChannel fileChannel = openFileChannel(filePath);
 
-            long downloadedBytes = filePath.toFile().length();
+            long downloadedBytes = file.commitedDownloadedBytes;
             file.downloadedBytes = downloadedBytes;
 
             ResumeFileDownloader handler = new ResumeFileDownloader(
-                    ctx, msg, file, filePath, fileChannel, filesStorageDao);
+                    ctx, msg, file, filePath, filesStorageDao, properties);
             startDownloading(file.url, file.id, handler, downloadedBytes);
         }, threadPoolsHolder.blockingTasksExecutor);
     }
@@ -161,24 +166,6 @@ public class DownloadManagerDao {
                 throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.", e);
             }
         }, threadPoolsHolder.blockingTasksExecutor);
-    }
-
-    private static SeekableByteChannel createFileChannel(Path filePath) {
-        try {
-            return Files.newByteChannel(filePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-        } catch (FileAlreadyExistsException e) {
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "The file with this name already exists.", e);
-        } catch (Exception e) {
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to create a file on a server.", e);
-        }
-    }
-
-    private static SeekableByteChannel openFileChannel(Path filePath) {
-        try {
-            return Files.newByteChannel(filePath, StandardOpenOption.APPEND, StandardOpenOption.WRITE);
-        } catch (Exception e) {
-            throw new ErrorException(Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Failed to open a file on a server.", e);
-        }
     }
 
     private Path resolveFilePath(String path, String fileName, boolean createFolders) {

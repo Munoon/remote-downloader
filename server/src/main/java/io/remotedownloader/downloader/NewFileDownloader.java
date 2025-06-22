@@ -3,6 +3,7 @@ package io.remotedownloader.downloader;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.remotedownloader.ServerProperties;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
@@ -14,7 +15,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.HttpResponseStatus;
 
-import java.nio.channels.SeekableByteChannel;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -32,9 +34,9 @@ public class NewFileDownloader extends BaseFileDownloader {
                              String ownerUsername,
                              DownloadUrlRequestDTO req,
                              Path filePath,
-                             SeekableByteChannel fileChannel,
-                             FilesStorageDao filesStorageDao) {
-        super(req.url(), filePath, fileChannel, filesStorageDao);
+                             FilesStorageDao filesStorageDao,
+                             ServerProperties serverProperties) {
+        super(req.url(), filePath, filesStorageDao, serverProperties);
         this.ctx = ctx;
         this.msg = msg;
         this.fileId = fileId;
@@ -55,9 +57,29 @@ public class NewFileDownloader extends BaseFileDownloader {
     }
 
     @Override
-    protected void onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
-        long now = System.currentTimeMillis();
+    protected FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
         long contentLength = getContentLength(headers);
+
+        FileChannel fileChannel;
+        try  {
+            RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
+            if (contentLength != -1) {
+                raf.setLength(contentLength);
+            }
+            fileChannel = raf.getChannel();
+        } catch (Exception e) {
+            log.warn("Failed to open file {}", filePath, e);
+
+            StringMessage response = StringMessage.error(
+                    msg,
+                    Error.ErrorTypes.FAILED_TO_DOWNLOAD,
+                    "Failed to start loading.");
+            ctx.writeAndFlush(response);
+
+            return null;
+        }
+
+        long now = System.currentTimeMillis();
         DownloadingFile file = new DownloadingFile(
                 fileId,
                 req.fileName(),
@@ -66,6 +88,7 @@ public class NewFileDownloader extends BaseFileDownloader {
                 ownerUsername,
                 DownloadingFileStatus.DOWNLOADING,
                 contentLength,
+                0,
                 now,
                 now
         );
@@ -73,6 +96,8 @@ public class NewFileDownloader extends BaseFileDownloader {
 
         filesStorageDao.addFile(file);
         ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
+
+        return fileChannel;
     }
 
     @Override

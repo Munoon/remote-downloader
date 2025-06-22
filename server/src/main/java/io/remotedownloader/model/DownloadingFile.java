@@ -17,6 +17,7 @@ public final class DownloadingFile implements StorageRecord<String> {
     public final String ownerUsername;
     public final DownloadingFileStatus status;
     public final long totalBytes;
+    public final long commitedDownloadedBytes;
     public final long createdAt;
     public final long updatedAt;
 
@@ -35,6 +36,7 @@ public final class DownloadingFile implements StorageRecord<String> {
             @JsonProperty("ownerUsername") String ownerUsername,
             @JsonProperty("status") DownloadingFileStatus status,
             @JsonProperty("totalBytes") long totalBytes,
+            @JsonProperty("commitedDownloadedBytes") long commitedDownloadedBytes,
             @JsonProperty("createdAt") long createdAt,
             @JsonProperty("updatedAt") long updatedAt
     ) {
@@ -46,6 +48,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                 ownerUsername,
                 status,
                 totalBytes,
+                commitedDownloadedBytes,
                 createdAt,
                 updatedAt,
                 0,
@@ -61,6 +64,7 @@ public final class DownloadingFile implements StorageRecord<String> {
             String ownerUsername,
             DownloadingFileStatus status,
             long totalBytes,
+            long commitedDownloadedBytes,
             long createdAt,
             long updatedAt,
             long downloadedBytes,
@@ -73,6 +77,7 @@ public final class DownloadingFile implements StorageRecord<String> {
         this.url = url;
         this.status = status;
         this.totalBytes = totalBytes;
+        this.commitedDownloadedBytes = commitedDownloadedBytes;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.downloadedBytes = downloadedBytes;
@@ -88,6 +93,24 @@ public final class DownloadingFile implements StorageRecord<String> {
                 ownerUsername,
                 status,
                 totalBytes,
+                commitedDownloadedBytes,
+                createdAt,
+                System.currentTimeMillis(),
+                downloadedBytes,
+                speedBytesPerMS
+        );
+    }
+
+    public DownloadingFile commitBytes(DownloadingFileStatus status, long downloadedBytes) {
+        return new DownloadingFile(
+                id,
+                name,
+                path,
+                url,
+                ownerUsername,
+                status,
+                totalBytes,
+                downloadedBytes,
                 createdAt,
                 System.currentTimeMillis(),
                 downloadedBytes,

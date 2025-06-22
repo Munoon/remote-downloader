@@ -1,6 +1,7 @@
 package io.remotedownloader.downloader;
 
 import io.netty.handler.codec.http.HttpHeaders;
+import io.remotedownloader.ServerProperties;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
@@ -12,29 +13,34 @@ import org.asynchttpclient.HttpResponseStatus;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     private static final Logger log = LogManager.getLogger(BaseFileDownloader.class);
     private final String url;
-    private final SeekableByteChannel fileChannel;
     protected final Path filePath;
     protected final FilesStorageDao filesStorageDao;
+    private final long mapSize;
+    private final int commitSize;
 
     protected DownloadingFile file;
+    private FileChannel fileChannel;
+    private MappedByteBuffer buffer;
     private HttpResponseStatus responseStatus;
     private long previousChunkTime;
     private volatile boolean aborted;
 
     protected BaseFileDownloader(String url,
                                  Path filePath,
-                                 SeekableByteChannel fileChannel,
-                                 FilesStorageDao filesStorageDao) {
+                                 FilesStorageDao filesStorageDao,
+                                 ServerProperties serverProperties) {
         this.url = url;
         this.filePath = filePath;
-        this.fileChannel = fileChannel;
         this.filesStorageDao = filesStorageDao;
+        this.mapSize = serverProperties.getFileMapSize();
+        this.commitSize = serverProperties.getFileCommitSize();
     }
 
     @Override
@@ -53,21 +59,41 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     @Override
-    public State onHeadersReceived(HttpHeaders headers) {
-        onStartDownloading(this.responseStatus, headers);
+    public State onHeadersReceived(HttpHeaders headers) throws IOException {
+        this.fileChannel = onStartDownloading(this.responseStatus, headers);
+        if (this.fileChannel == null) {
+            markAborted();
+            return State.ABORT;
+        }
+
+        buffer = allocateBuffer(file.downloadedBytes);
         return State.CONTINUE;
     }
 
     @Override
     public State onBodyPartReceived(HttpResponseBodyPart bodyPart) {
         try {
-            ByteBuffer byteBuffer = bodyPart.getBodyByteBuffer();
-            long size = byteBuffer.remaining();
-            if (size == 0) {
-                return State.CONTINUE;
-            }
+            ByteBuffer chunk = bodyPart.getBodyByteBuffer();
+            int size = chunk.remaining();
 
-            fileChannel.write(byteBuffer);
+            long previouslyDownloadedBytes = file.downloadedBytes;
+            long fileOffset = previouslyDownloadedBytes;
+            while (chunk.hasRemaining()) {
+                int remaining = buffer.remaining();
+                if (remaining < chunk.remaining()) {
+                    if (remaining > 0) {
+                        int originalChunkLimit = chunk.limit();
+                        chunk.limit(chunk.position() + remaining);
+                        buffer.put(chunk);
+                        chunk.limit(originalChunkLimit);
+                        fileOffset += remaining;
+                    }
+
+                    buffer = allocateBuffer(fileOffset);
+                } else {
+                    buffer.put(chunk);
+                }
+            }
 
             long now = System.nanoTime();
 
@@ -75,14 +101,21 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
                 log.trace("Body part received for file {} [size = {}]", filePath, size);
             }
 
-            if (file != null) {
+            long downloadedBytes = previouslyDownloadedBytes + size;
+            if ((previouslyDownloadedBytes / commitSize) != (downloadedBytes / commitSize)) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Commiting file {}, downloaded bytes = {}", filePath, downloadedBytes);
+                }
+                this.file = file.commitBytes(DownloadingFileStatus.DOWNLOADING, downloadedBytes);
+                filesStorageDao.updateFile(file);
+                fileChannel.force(false);
+            } else {
                 // as long, as we are writing to this field only from a single thread - this is fine
-                //noinspection NonAtomicOperationOnVolatileField
-                file.downloadedBytes += size;
-
-                long durationMS = Math.max(now - previousChunkTime, 1_000_000) / 1_000_000;
-                file.speedBytesPerMS = size / durationMS;
+                file.downloadedBytes = downloadedBytes;
             }
+
+            long durationMS = Math.max(now - previousChunkTime, 1_000_000) / 1_000_000;
+            file.speedBytesPerMS = size / durationMS;
 
             previousChunkTime = now;
         } catch (IOException e) {
@@ -90,6 +123,15 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
             return State.ABORT;
         }
         return State.CONTINUE;
+    }
+
+    private MappedByteBuffer allocateBuffer(long fileOffset) throws IOException {
+        long remainingBytes = file.totalBytes - fileOffset;
+        if (remainingBytes > 0) {
+            long size = Math.min(mapSize, remainingBytes);
+            return fileChannel.map(FileChannel.MapMode.READ_WRITE, fileOffset, size);
+        }
+        return null;
     }
 
     @Override
@@ -114,12 +156,16 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     protected abstract void onStartFailure();
-    protected abstract void onStartDownloading(HttpResponseStatus status, HttpHeaders headers);
+    protected abstract FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers);
     protected abstract void onError();
 
     private void closeFile() {
         try {
-            fileChannel.close();
+            try {
+                fileChannel.force(false);
+            } finally {
+                fileChannel.close();
+            }
         } catch (IOException e) {
             log.warn("Failed to close a file", e);
         }

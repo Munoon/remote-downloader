@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 
 import static io.remotedownloader.util.TestUtil.assertWithReties;
 import static io.remotedownloader.util.WebClient.loggedAdminWebClient;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -129,7 +131,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "");
+            verifyFileContent("file.txt", "\0".repeat(5));
 
             OutputStream responseBody = exchange.getResponseBody();
             responseBody.write(new byte[]{'a', 'b'});
@@ -148,7 +150,7 @@ public class DownloadFileTest extends BaseTest {
                 assertEquals(5, reportedFile.totalBytes());
                 assertEquals(2, reportedFile.downloadedBytes());
             });
-            verifyFileContent("file.txt", "ab");
+            verifyFileContent("file.txt", "ab\0\0\0");
 
             responseBody.write(new byte[]{'c', 'd', 'e'});
             responseBody.flush();
@@ -272,7 +274,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "");
+            verifyFileContent("file.txt", "\0".repeat(5));
 
             OutputStream responseBody = exchange.getResponseBody();
             responseBody.write(new byte[]{'a', 'b'});
@@ -291,7 +293,7 @@ public class DownloadFileTest extends BaseTest {
                 assertEquals(5, reportedFile.totalBytes());
                 assertEquals(2, reportedFile.downloadedBytes());
             });
-            verifyFileContent("file.txt", "ab");
+            verifyFileContent("file.txt", "ab\0\0\0");
 
             file = webClient.stopDownloading(file.id()).parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -396,7 +398,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "");
+            verifyFileContent("file.txt", "\0".repeat(5));
 
             OutputStream responseBody = exchange.getResponseBody();
             responseBody.write(new byte[]{'a', 'b'});
@@ -415,7 +417,7 @@ public class DownloadFileTest extends BaseTest {
                 assertEquals(5, reportedFile.totalBytes());
                 assertEquals(2, reportedFile.downloadedBytes());
             });
-            verifyFileContent("file.txt", "ab");
+            verifyFileContent("file.txt", "ab\0\0\0");
 
             file = webClient.stopDownloading(file.id()).parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -548,7 +550,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "");
+            verifyFileContent("file.txt", "\0".repeat(5));
 
             OutputStream responseBody = exchange.getResponseBody();
             responseBody.write(new byte[]{'a', 'b'});
@@ -570,7 +572,7 @@ public class DownloadFileTest extends BaseTest {
 
             Path filePath = Path.of(holder.serverProperties.getDownloadFolder(), "file.txt");
             assertTrue(Files.exists(filePath));
-            verifyFileContent("file.txt", "ab");
+            verifyFileContent("file.txt", "ab\0\0\0");
 
             webClient.deleteFile(file.id()).verifyOk(1);
 
@@ -730,6 +732,71 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(2, page.totalElements());
             assertNotNull(page.content());
             assertEquals(0, page.content().length);
+        } finally {
+            fileServer.stop(0);
+        }
+    }
+
+    @Test
+    void downloadLargeFile() throws Throwable {
+        DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
+
+        int memorySize = 64 * 1024 * 1024;
+        int fileLength = 3 * memorySize;
+
+        byte[] chunk = new byte[memorySize];
+        int i = 0;
+        for (int j = 0; j < memorySize / 2 / 8; j++) {
+            for (byte k = '0'; k < '8'; k++) {
+                chunk[i++] = k;
+            }
+        }
+
+        HttpHandler downloadFileHandler = exchange -> {
+            try (exchange) {
+                exchange.sendResponseHeaders(200, fileLength);
+
+                OutputStream responseBody = exchange.getResponseBody();
+                for (int chunkNo = 0; chunkNo < 6; chunkNo++) {
+                    responseBody.write(chunk);
+                    responseBody.flush();
+                }
+            }
+        };
+        HttpServer fileServer = HttpServer.create(
+                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
+        fileServer.start();
+        try {
+            WebClient webClient = loggedAdminWebClient();
+
+            webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
+            DownloadFileDTO file = webClient.parseDownloadFile(1);
+            assertEquals("file.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
+
+            assertWithReties(10000, 200, () -> {
+                webClient.reset();
+
+                reportWorker.run();
+                FilesHistoryReportDTO report = webClient.parseFilesHistoryReport(0);
+                assertNotNull(report.files());
+                assertEquals(1, report.files().size());
+                DownloadFileDTO reportedFile = report.files().getFirst();
+                assertEquals("file.txt", reportedFile.name());
+                assertEquals(DownloadingFileStatus.DOWNLOADED, reportedFile.status());
+            });
+
+            Path path = Path.of(holder.serverProperties.getDownloadFolder(), "file.txt");
+            assertEquals(fileLength, path.toFile().length());
+            char[] readChunk = new char[8];
+            char[] assertChunk = new char[8];
+            for (int j = 0; j < 8; j++) {
+                assertChunk[j] = Character.forDigit(j, 10);
+            }
+            try (BufferedReader reader = Files.newBufferedReader(path)) {
+                reader.read(readChunk);
+                assertArrayEquals(assertChunk, readChunk);
+            }
         } finally {
             fileServer.stop(0);
         }

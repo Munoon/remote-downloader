@@ -3,20 +3,25 @@ package io.remotedownloader.downloader;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.remotedownloader.ServerProperties;
 import io.remotedownloader.dao.FilesStorageDao;
 import io.remotedownloader.model.DownloadingFile;
 import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.protocol.StringMessage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.HttpResponseStatus;
 
-import java.nio.channels.SeekableByteChannel;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.PARTIAL_CONTENT;
 
 public class ResumeFileDownloader extends BaseFileDownloader {
+    private static final Logger log = LogManager.getLogger(ResumeFileDownloader.class);
     private final ChannelHandlerContext ctx;
     private final StringMessage msg;
 
@@ -24,9 +29,9 @@ public class ResumeFileDownloader extends BaseFileDownloader {
                                 StringMessage msg,
                                 DownloadingFile file,
                                 Path filePath,
-                                SeekableByteChannel fileChannel,
-                                FilesStorageDao filesStorageDao) {
-        super(file.url, filePath, fileChannel, filesStorageDao);
+                                FilesStorageDao filesStorageDao,
+                                ServerProperties serverProperties) {
+        super(file.url, filePath, filesStorageDao, serverProperties);
         this.file = file;
         this.ctx = ctx;
         this.msg = msg;
@@ -34,11 +39,15 @@ public class ResumeFileDownloader extends BaseFileDownloader {
 
     @Override
     protected void onStartFailure() {
+        onStartFailure("Server respond with an error.");
+    }
+
+    private void onStartFailure(String message) {
         if (ctx != null) {
             StringMessage response = StringMessage.error(
                     msg,
                     Error.ErrorTypes.FAILED_TO_DOWNLOAD,
-                    "Server respond with an error.");
+                    message);
             ctx.writeAndFlush(response);
         } else {
             // if ctx == null -> this means, we are resuming downloading files on boot
@@ -47,8 +56,23 @@ public class ResumeFileDownloader extends BaseFileDownloader {
     }
 
     @Override
-    protected void onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
+    protected FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
         long fileLength = getFileLength(status, headers);
+
+        FileChannel fileChannel;
+        try  {
+            RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
+            if (fileLength != -1) {
+                raf.setLength(fileLength);
+            }
+            fileChannel = raf.getChannel();
+            fileChannel.position(file.commitedDownloadedBytes);
+        } catch (Exception e) {
+            log.warn("Failed to open file {}", filePath, e);
+            onStartFailure("Failed to start loading.");
+            return null;
+        }
+
         if (file.status != DownloadingFileStatus.DOWNLOADING
             || file.speedBytesPerMS != 0
             || (fileLength != -1 && file.totalBytes != fileLength)) {
@@ -60,6 +84,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
                     file.ownerUsername,
                     DownloadingFileStatus.DOWNLOADING,
                     fileLength != -1 ? fileLength : file.totalBytes,
+                    file.commitedDownloadedBytes,
                     file.createdAt,
                     System.currentTimeMillis(),
                     file.downloadedBytes,
@@ -72,6 +97,8 @@ public class ResumeFileDownloader extends BaseFileDownloader {
         if (ctx != null) {
             ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
         }
+
+        return fileChannel;
     }
 
     @Override

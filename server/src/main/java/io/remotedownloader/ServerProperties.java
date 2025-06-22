@@ -40,6 +40,14 @@ public class ServerProperties extends Properties {
         return getIntProperty("threads.count", 2);
     }
 
+    public int getFileMapSize() {
+        return getIntProperty("file.map.size", 64 * 1024 * 1024); // 64MB
+    }
+
+    public int getFileCommitSize() {
+        return getIntProperty("file.commit.size", 1024 * 1024 * 1024); // 1GB
+    }
+
     private int getIntProperty(String key, int defaultValue) {
         String strValue = getProperty(key);
         if (strValue != null) {
