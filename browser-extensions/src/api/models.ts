@@ -9,7 +9,7 @@ interface HistoryFile {
   status: 'DOWNLOADING' | 'DOWNLOADED' | 'PAUSED' | 'ERROR'
   totalBytes: number
   downloadedBytes: number
-  speedBytesPerMS: number
+  speedBytesPerSecond: number
 }
 
 interface FilesHistoryReport {
