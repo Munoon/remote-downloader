@@ -34,8 +34,10 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     private MappedByteBuffer buffer;
     private HttpResponseStatus responseStatus;
     private HttpHeaders headers;
-    private long previousChunkTime;
     private volatile boolean aborted;
+
+    private long secondStart;
+    private long secondDownloadedBytes;
 
     protected BaseFileDownloader(String url,
                                  Path filePath,
@@ -110,8 +112,6 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
                 }
             }
 
-            long now = System.nanoTime();
-
             if (log.isTraceEnabled()) {
                 log.trace("Body part received for file {} [size = {}]", filePath, size);
             }
@@ -129,10 +129,16 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
                 file.downloadedBytes = downloadedBytes;
             }
 
-            long durationMS = Math.max(now - previousChunkTime, 1_000_000) / 1_000_000;
-            file.speedBytesPerMS = size / durationMS;
-
-            previousChunkTime = now;
+            long now = System.nanoTime();
+            if (secondStart == 0) {
+                this.secondStart = now;
+            } else if (now - secondStart >= 1000000000) {
+                file.speedBytesPerSecond = secondDownloadedBytes;
+                secondDownloadedBytes = 0;
+                secondStart = now;
+            } else {
+                secondDownloadedBytes += size;
+            }
         } catch (IOException e) {
             log.warn("Failed to write to a file {}", filePath);
             return State.ABORT;

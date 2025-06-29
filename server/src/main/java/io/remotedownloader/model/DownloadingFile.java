@@ -25,7 +25,7 @@ public final class DownloadingFile implements StorageRecord<String> {
     @JsonIgnore
     public volatile long downloadedBytes;
     @JsonIgnore
-    public volatile long speedBytesPerMS;
+    public volatile long speedBytesPerSecond;
 
     @JsonCreator
     public DownloadingFile(
@@ -68,7 +68,7 @@ public final class DownloadingFile implements StorageRecord<String> {
             long createdAt,
             long updatedAt,
             long downloadedBytes,
-            long speedBytesPerMS
+            long speedBytesPerSecond
     ) {
         this.id = id;
         this.name = name;
@@ -81,7 +81,7 @@ public final class DownloadingFile implements StorageRecord<String> {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.downloadedBytes = downloadedBytes;
-        this.speedBytesPerMS = speedBytesPerMS;
+        this.speedBytesPerSecond = speedBytesPerSecond;
     }
 
     public DownloadingFile commitBytes(DownloadingFileStatus status, long downloadedBytes) {
@@ -97,7 +97,7 @@ public final class DownloadingFile implements StorageRecord<String> {
                 createdAt,
                 System.currentTimeMillis(),
                 downloadedBytes,
-                speedBytesPerMS
+                speedBytesPerSecond
         );
     }
 

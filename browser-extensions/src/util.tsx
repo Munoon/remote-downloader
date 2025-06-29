@@ -1,21 +1,24 @@
 export function buildTimeRemainingMessage(secondsRemaining: number): string {
   if (secondsRemaining < 60) {
-    return `${secondsRemaining} seconds remaining`;
+    const seconds = Math.floor(secondsRemaining);
+    return seconds == 1 ? '1 second remaining' : `${seconds} seconds remaining`;
   } else if (secondsRemaining < 60 * 60) {
-    return `${Math.floor(secondsRemaining / 60)} minutes remaining`;
+    const minutes = Math.floor(secondsRemaining / 60);
+    return minutes == 1 ? '1 minute remaining' : `${minutes} minutes remaining`;
   } else if (secondsRemaining < 24 * 60 * 60) {
-    return `${Math.floor(secondsRemaining / 60 * 60)} hours remaining`;
+    const hours = Math.floor(secondsRemaining / 60 * 60);
+    return hours == 1 ? '1 hour remaining' : `${hours} hours remaining`;
   } else {
-    return `${Math.floor(secondsRemaining / 24 * 60 * 60)} days remaining`;
+    const days = Math.floor(secondsRemaining / 24 * 60 * 60);
+    return days == 1 ? '1 day remining' : `${days} days remaining`;
   }
 }
 
-export function buildSpeedMessage(bytesPerMillisecond: number): string | null {
-  if (bytesPerMillisecond === 0) {
+export function buildSpeedMessage(bytesPerSecond: number): string | null {
+  if (bytesPerSecond === 0) {
     return null;
   }
 
-  const bytesPerSecond = bytesPerMillisecond * 1000;
   if (bytesPerSecond < 1024) {
     return `${Math.floor(bytesPerSecond)} B/s`;
   } else if (bytesPerSecond < 1024 ** 2) {

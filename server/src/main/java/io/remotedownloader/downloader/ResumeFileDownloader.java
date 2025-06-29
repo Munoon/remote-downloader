@@ -77,7 +77,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
         this.skipBytesLeft = status.getStatusCode() == PARTIAL_CONTENT.code() ? 0 : file.commitedDownloadedBytes;
 
         if (file.status != DownloadingFileStatus.DOWNLOADING
-            || file.speedBytesPerMS != 0
+            || file.speedBytesPerSecond != 0
             || (fileLength > 0 && file.totalBytes != fileLength)) {
             this.file = new DownloadingFile(
                     file.id,
