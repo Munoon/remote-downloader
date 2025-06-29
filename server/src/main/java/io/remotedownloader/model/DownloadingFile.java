@@ -84,23 +84,6 @@ public final class DownloadingFile implements StorageRecord<String> {
         this.speedBytesPerMS = speedBytesPerMS;
     }
 
-    public DownloadingFile withStatus(DownloadingFileStatus status) {
-        return new DownloadingFile(
-                id,
-                name,
-                path,
-                url,
-                ownerUsername,
-                status,
-                totalBytes,
-                commitedDownloadedBytes,
-                createdAt,
-                System.currentTimeMillis(),
-                downloadedBytes,
-                speedBytesPerMS
-        );
-    }
-
     public DownloadingFile commitBytes(DownloadingFileStatus status, long downloadedBytes) {
         return new DownloadingFile(
                 id,

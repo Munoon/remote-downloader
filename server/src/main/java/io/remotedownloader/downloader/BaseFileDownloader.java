@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
+import java.util.concurrent.CancellationException;
 
 public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     private static final Logger log = LogManager.getLogger(BaseFileDownloader.class);
@@ -53,16 +54,17 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
         } else {
             log.info("Received {} response code from server when trying to download {}. Aborting...", statusCode, filePath);
             onStartFailure();
-            markAborted();
+            this.aborted = true;
             return State.ABORT;
         }
     }
 
     @Override
     public State onHeadersReceived(HttpHeaders headers) throws IOException {
+        // TODO handle case when headers are empty
         this.fileChannel = onStartDownloading(this.responseStatus, headers);
         if (this.fileChannel == null) {
-            markAborted();
+            this.aborted = true;
             return State.ABORT;
         }
 
@@ -127,18 +129,15 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     private MappedByteBuffer allocateBuffer(long fileOffset) throws IOException {
         long remainingBytes = file.totalBytes - fileOffset;
-        if (remainingBytes > 0) {
-            long size = Math.min(mapSize, remainingBytes);
-            return fileChannel.map(FileChannel.MapMode.READ_WRITE, fileOffset, size);
-        }
-        return null;
+        long size = remainingBytes > 0 ? Math.min(mapSize, remainingBytes) : mapSize;
+        return fileChannel.map(FileChannel.MapMode.READ_WRITE, fileOffset, size);
     }
 
     @Override
     public void onThrowable(Throwable t) {
         log.warn("Failed to download '{}'", filePath, t);
         closeFile();
-        if (!aborted) {
+        if (!aborted && !(t instanceof CancellationException)) {
             onError();
         }
     }
@@ -160,22 +159,20 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     protected abstract void onError();
 
     private void closeFile() {
-        try {
+        if (fileChannel != null) {
             try {
-                fileChannel.force(false);
-            } finally {
-                fileChannel.close();
+                try {
+                    fileChannel.force(false);
+                } finally {
+                    fileChannel.close();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to close a file", e);
             }
-        } catch (IOException e) {
-            log.warn("Failed to close a file", e);
         }
     }
 
     protected void markFile(DownloadingFileStatus status) {
-        filesStorageDao.updateFile(file.withStatus(status));
-    }
-
-    public void markAborted() {
-        this.aborted = true;
+        filesStorageDao.updateFile(file.commitBytes(status, file.downloadedBytes));
     }
 }

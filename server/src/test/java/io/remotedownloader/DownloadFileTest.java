@@ -1,24 +1,31 @@
 package io.remotedownloader;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.remotedownloader.model.DownloadingFileStatus;
 import io.remotedownloader.model.dto.DownloadFileDTO;
 import io.remotedownloader.model.dto.Error;
 import io.remotedownloader.model.dto.FilesHistoryReportDTO;
 import io.remotedownloader.model.dto.ListFoldersResponseDTO;
 import io.remotedownloader.model.dto.Page;
+import io.remotedownloader.util.TestFileServer;
 import io.remotedownloader.util.WebClient;
 import io.remotedownloader.worker.DownloadingFilesReportWorker;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,35 +36,14 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 public class DownloadFileTest extends BaseTest {
     @Test
-    void downloadFile() throws IOException, InterruptedException {
+    void downloadFile() throws Exception {
         byte[] fileContent = "This is example file content.".getBytes(StandardCharsets.UTF_8);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                try (exchange) {
-                    exchange.sendResponseHeaders(200, fileContent.length);
-                    exchange.getResponseBody().write(fileContent);
-                    exchange.getResponseBody().flush();
-                }
-            }
-        }
+        TestFileServer fileServer = TestFileServer.simpleFileServer(fileContent);
 
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
 
@@ -67,63 +53,45 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
             assertEquals(fileContent.length, file.totalBytes());
 
-            verify(downloadFileHandler, times(1)).handle(any());
+            fileServer.verifyRequest();
             verifyFileContent("example file.txt", "This is example file content.");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
     @Test
-    void downloadFileServerReturnError() throws IOException, InterruptedException {
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                try (exchange) {
-                    exchange.sendResponseHeaders(404, 0);
-                }
-            }
-        }
+    void downloadFileServerReturnError() throws Exception {
+        TestFileServer fileServer = new TestFileServer((ctx, msg) -> {
+            ctx.writeAndFlush(new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.NOT_FOUND
+            ));
+        });
 
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null)
                     .verifyError(1, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "Server respond with an error.");
 
-            verify(downloadFileHandler, times(1)).handle(any());
+            fileServer.verifyRequest();
             assertFalse(Files.exists(Path.of(holder.serverProperties.getDownloadFolder(), "file.txt")));
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
     @Test
     void chunkedFileDownload() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                exchange.sendResponseHeaders(200, 5);
-            }
-        }
-
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.fileLengthResponding(5);
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
-            ArgumentCaptor<HttpExchange> exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            HttpExchange exchange = exchangeCaptor.getValue();
+            ChannelHandlerContext ctx = fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -133,9 +101,8 @@ public class DownloadFileTest extends BaseTest {
 
             verifyFileContent("file.txt", "\0".repeat(5));
 
-            OutputStream responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a', 'b'});
-            responseBody.flush();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -152,9 +119,9 @@ public class DownloadFileTest extends BaseTest {
             });
             verifyFileContent("file.txt", "ab\0\0\0");
 
-            responseBody.write(new byte[]{'c', 'd', 'e'});
-            responseBody.flush();
-            exchange.close();
+            content = Unpooled.wrappedBuffer(new byte[]{'c', 'd', 'e'});
+            ctx.writeAndFlush(new DefaultLastHttpContent(content))
+                    .addListener(ChannelFutureListener.CLOSE);
 
             assertWithReties(10, 200, () -> {
                 webClient.reset();
@@ -171,28 +138,15 @@ public class DownloadFileTest extends BaseTest {
             });
             verifyFileContent("file.txt", "abcde");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
     @Test
-    void subDirectoriesCreated() throws IOException, InterruptedException {
+    void subDirectoriesCreated() throws Exception {
         byte[] fileContent = "This is example file content.".getBytes(StandardCharsets.UTF_8);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                try (exchange) {
-                    exchange.sendResponseHeaders(200, fileContent.length);
-                    exchange.getResponseBody().write(fileContent);
-                    exchange.getResponseBody().flush();
-                }
-            }
-        }
+        TestFileServer fileServer = TestFileServer.simpleFileServer(fileContent);
 
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
         try {
             WebClient webClient = loggedAdminWebClient();
 
@@ -202,10 +156,10 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
             assertEquals(fileContent.length, file.totalBytes());
 
-            verify(downloadFileHandler, times(1)).handle(any());
+            fileServer.verifyRequest();
             verifyFileContent("subFolderA/subFolderB/file.txt", "This is example file content.");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -248,25 +202,13 @@ public class DownloadFileTest extends BaseTest {
     @Test
     void stopDownloadingFile() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                exchange.sendResponseHeaders(200, 5);
-            }
-        }
-
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.fileLengthResponding(5);
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
-            ArgumentCaptor<HttpExchange> exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            HttpExchange exchange = exchangeCaptor.getValue();
+            ChannelHandlerContext ctx = fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -276,9 +218,8 @@ public class DownloadFileTest extends BaseTest {
 
             verifyFileContent("file.txt", "\0".repeat(5));
 
-            OutputStream responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a', 'b'});
-            responseBody.flush();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -303,36 +244,22 @@ public class DownloadFileTest extends BaseTest {
 
             // checking, that the remote connection is closed
             assertWithReties(5, 200, () -> {
-                assertThrows(IOException.class, () -> exchange.getResponseBody().write(1));
+                assertFalse(ctx.channel().isOpen());
             });
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
     @Test
     void stopNonDownloadingFile() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                try (exchange) {
-                    exchange.sendResponseHeaders(200, 3);
-                    exchange.getResponseBody().write(new byte[]{'a', 'b', 'c'});
-                    exchange.getResponseBody().flush();
-                }
-            }
-        }
-
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.simpleFileServer(new byte[]{'a', 'b', 'c'});
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(any());
+            fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -357,7 +284,7 @@ public class DownloadFileTest extends BaseTest {
             webClient.stopDownloading(file.id())
                     .verifyError(1, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Downloading'.");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -373,24 +300,12 @@ public class DownloadFileTest extends BaseTest {
     @Test
     void resumeDownloading() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-
-        HttpHandler downloadFileHandler = mock(HttpHandler.class);
-        doAnswer(answ -> {
-            HttpExchange exchange = answ.getArgument(0, HttpExchange.class);
-            exchange.sendResponseHeaders(200, 5);
-            return null;
-        }).when(downloadFileHandler).handle(any());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.fileLengthResponding(5);
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
-
-            ArgumentCaptor<HttpExchange> exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            HttpExchange exchange = exchangeCaptor.getValue();
+            ChannelHandlerContext ctx = fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -400,9 +315,8 @@ public class DownloadFileTest extends BaseTest {
 
             verifyFileContent("file.txt", "\0".repeat(5));
 
-            OutputStream responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a', 'b'});
-            responseBody.flush();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -425,28 +339,18 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(2, file.downloadedBytes());
 
-            Mockito.clearInvocations(downloadFileHandler);
-            doAnswer(answ -> {
-                HttpExchange e = answ.getArgument(0, HttpExchange.class);
-                e.getResponseHeaders().set("Content-Range", "bytes=2-5/6");
-                e.sendResponseHeaders(206, 4);
-                return null;
-            }).when(downloadFileHandler).handle(any());
+            fileServer.requestHandler(TestFileServer.RequestHandler.contentRangeResponding(4, "bytes=2-5/6"));
             file = webClient.resumeDownloading(file.id()).parseDownloadFile(2);
             assertEquals("file.txt", file.name());
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
             assertEquals(6, file.totalBytes());
             assertEquals(2, file.downloadedBytes());
 
-            exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            exchange = exchangeCaptor.getValue();
-            assertEquals("bytes=2-", exchange.getRequestHeaders().getFirst("Range"));
+            ctx = fileServer.verifyRequest(r -> "bytes=2-".equals(r.headers().get("Range")));
 
-            responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'c', 'd', 'e', 'j'});
-            responseBody.flush();
-            exchange.close();
+            content = Unpooled.wrappedBuffer(new byte[]{'c', 'd', 'e', 'j'});
+            ctx.writeAndFlush(new DefaultLastHttpContent(content))
+                    .addListener(ChannelFutureListener.CLOSE);
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -463,7 +367,7 @@ public class DownloadFileTest extends BaseTest {
             });
             verifyFileContent("file.txt", "abcdej");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -471,23 +375,12 @@ public class DownloadFileTest extends BaseTest {
     void resumeDownloadingWithNoContentRangeSupport() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
 
-        HttpHandler downloadFileHandler = mock(HttpHandler.class);
-        doAnswer(answ -> {
-            HttpExchange exchange = answ.getArgument(0, HttpExchange.class);
-            exchange.sendResponseHeaders(200, 5);
-            return null;
-        }).when(downloadFileHandler).handle(any());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.fileLengthResponding(5);
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
-
-            ArgumentCaptor<HttpExchange> exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            HttpExchange exchange = exchangeCaptor.getValue();
+            ChannelHandlerContext ctx = fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -497,9 +390,8 @@ public class DownloadFileTest extends BaseTest {
 
             verifyFileContent("file.txt", "\0".repeat(5));
 
-            OutputStream responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a', 'b'});
-            responseBody.flush();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -522,33 +414,24 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(2, file.downloadedBytes());
 
-            Mockito.clearInvocations(downloadFileHandler);
-            doAnswer(answ -> {
-                HttpExchange e = answ.getArgument(0, HttpExchange.class);
-                e.sendResponseHeaders(200, 5);
-                return null;
-            }).when(downloadFileHandler).handle(any());
+            fileServer.reset();
             file = webClient.resumeDownloading(file.id()).parseDownloadFile(2);
             assertEquals("file.txt", file.name());
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
             assertEquals(5, file.totalBytes());
             assertEquals(2, file.downloadedBytes());
 
-            exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            exchange = exchangeCaptor.getValue();
+            ctx = fileServer.verifyRequest();
 
-            responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a'});
-            responseBody.flush();
+            content = Unpooled.wrappedBuffer(new byte[]{'a'});
+            ctx.writeAndFlush(new DefaultHttpContent(content)).sync();
 
-            responseBody.write(new byte[]{'b', 'c'});
-            responseBody.flush();
+            content = Unpooled.wrappedBuffer(new byte[]{'b', 'c'});
+            ctx.writeAndFlush(new DefaultHttpContent(content)).sync();
 
-            responseBody.write(new byte[]{'d', 'e'});
-            responseBody.flush();
-
-            exchange.close();
+            content = Unpooled.wrappedBuffer(new byte[]{'d', 'e'});
+            ctx.writeAndFlush(new DefaultLastHttpContent(content))
+                    .addListener(ChannelFutureListener.CLOSE);
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -565,7 +448,7 @@ public class DownloadFileTest extends BaseTest {
             });
             verifyFileContent("file.txt", "abcde");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -573,16 +456,7 @@ public class DownloadFileTest extends BaseTest {
     void resumeNonPausedFile() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
 
-        HttpHandler downloadFileHandler = exchange -> {
-            try (exchange) {
-                exchange.sendResponseHeaders(200, 3);
-                exchange.getResponseBody().write(new byte[]{'a', 'b', 'c'});
-                exchange.getResponseBody().flush();
-            }
-        };
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.simpleFileServer(new byte[]{'a', 'b', 'c'});
         try {
             WebClient webClient = loggedAdminWebClient();
 
@@ -610,7 +484,7 @@ public class DownloadFileTest extends BaseTest {
             webClient.resumeDownloading(file.id())
                     .verifyError(1, Error.ErrorTypes.FAILED_TO_DOWNLOAD, "File status should be 'Paused'.");
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -626,25 +500,12 @@ public class DownloadFileTest extends BaseTest {
     @Test
     void deleteFile() throws Throwable {
         DownloadingFilesReportWorker reportWorker = new DownloadingFilesReportWorker(holder);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                exchange.sendResponseHeaders(200, 5);
-            }
-        }
-
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+        TestFileServer fileServer = TestFileServer.fileLengthResponding(5);
         try {
             WebClient webClient = loggedAdminWebClient();
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
-
-            ArgumentCaptor<HttpExchange> exchangeCaptor = ArgumentCaptor.forClass(HttpExchange.class);
-            verify(downloadFileHandler, timeout(500).times(1)).handle(exchangeCaptor.capture());
-            HttpExchange exchange = exchangeCaptor.getValue();
+            ChannelHandlerContext ctx = fileServer.verifyRequest();
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -654,9 +515,8 @@ public class DownloadFileTest extends BaseTest {
 
             verifyFileContent("file.txt", "\0".repeat(5));
 
-            OutputStream responseBody = exchange.getResponseBody();
-            responseBody.write(new byte[]{'a', 'b'});
-            responseBody.flush();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -680,12 +540,12 @@ public class DownloadFileTest extends BaseTest {
 
             // checking, that the remote connection is closed
             assertWithReties(5, 200, () -> {
-                assertThrows(IOException.class, () -> exchange.getResponseBody().write(1));
+                assertFalse(ctx.channel().isOpen());
             });
 
             assertFalse(Files.exists(filePath));
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -759,26 +619,12 @@ public class DownloadFileTest extends BaseTest {
     }
 
     @Test
-    void getFilesHistory() throws InterruptedException, IOException {
+    void getFilesHistory() throws InterruptedException {
         byte[] fileContent = "This is example file content.".getBytes(StandardCharsets.UTF_8);
-        class DownloadFileHandler implements HttpHandler {
-            @Override
-            public void handle(HttpExchange exchange) throws IOException {
-                try (exchange) {
-                    exchange.sendResponseHeaders(200, fileContent.length);
-                    exchange.getResponseBody().write(fileContent);
-                    exchange.getResponseBody().flush();
-                }
-            }
-        }
-
-        HttpHandler downloadFileHandler = spy(new DownloadFileHandler());
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
-
-        WebClient webClient = loggedAdminWebClient();
+        TestFileServer fileServer = TestFileServer.simpleFileServer(fileContent);
         try {
+            WebClient webClient = loggedAdminWebClient();
+
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file1.txt", null);
             DownloadFileDTO file1 = webClient.parseDownloadFile(1);
             assertEquals("file1.txt", file1.name());
@@ -835,7 +681,7 @@ public class DownloadFileTest extends BaseTest {
             assertNotNull(page.content());
             assertEquals(0, page.content().length);
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
@@ -846,28 +692,27 @@ public class DownloadFileTest extends BaseTest {
         int memorySize = 64 * 1024 * 1024;
         int fileLength = 3 * memorySize;
 
-        byte[] chunk = new byte[memorySize];
+        byte[] chunk = new byte[fileLength / 6];
         int i = 0;
-        for (int j = 0; j < memorySize / 2 / 8; j++) {
+        for (int j = 0; j < fileLength / 6 / 8; j++) {
             for (byte k = '0'; k < '8'; k++) {
                 chunk[i++] = k;
             }
         }
 
-        HttpHandler downloadFileHandler = exchange -> {
-            try (exchange) {
-                exchange.sendResponseHeaders(200, fileLength);
+        TestFileServer fileServer = new TestFileServer((ctx, msg) -> {
+            DefaultHttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            response.headers().add(HttpHeaderNames.CONTENT_LENGTH, String.valueOf(fileLength));
+            response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+            ctx.write(response);
 
-                OutputStream responseBody = exchange.getResponseBody();
-                for (int chunkNo = 0; chunkNo < 6; chunkNo++) {
-                    responseBody.write(chunk);
-                    responseBody.flush();
-                }
+            for (int chunkNo = 0; chunkNo < 6; chunkNo++) {
+                ctx.write(new DefaultHttpContent(Unpooled.wrappedBuffer(chunk)));
             }
-        };
-        HttpServer fileServer = HttpServer.create(
-                new InetSocketAddress(18081), 0, "/example-file.txt", downloadFileHandler);
-        fileServer.start();
+
+            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+                    .addListener(ChannelFutureListener.CLOSE);
+        });
         try {
             WebClient webClient = loggedAdminWebClient();
 
@@ -876,7 +721,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals("file.txt", file.name());
             assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
 
-            assertWithReties(10000, 200, () -> {
+            assertWithReties(20, 200, () -> {
                 webClient.reset();
 
                 reportWorker.run();
@@ -891,16 +736,13 @@ public class DownloadFileTest extends BaseTest {
             Path path = Path.of(holder.serverProperties.getDownloadFolder(), "file.txt");
             assertEquals(fileLength, path.toFile().length());
             char[] readChunk = new char[8];
-            char[] assertChunk = new char[8];
-            for (int j = 0; j < 8; j++) {
-                assertChunk[j] = Character.forDigit(j, 10);
-            }
+            char[] assertChunk = new char[]{ '0', '1', '2', '3', '4', '5', '6', '7' };
             try (BufferedReader reader = Files.newBufferedReader(path)) {
                 reader.read(readChunk);
                 assertArrayEquals(assertChunk, readChunk);
             }
         } finally {
-            fileServer.stop(0);
+            fileServer.close();
         }
     }
 
