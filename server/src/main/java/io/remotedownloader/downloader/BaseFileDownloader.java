@@ -1,5 +1,6 @@
 package io.remotedownloader.downloader;
 
+import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.remotedownloader.ServerProperties;
 import io.remotedownloader.dao.FilesStorageDao;
@@ -12,6 +13,7 @@ import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -27,9 +29,11 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     private final int commitSize;
 
     protected DownloadingFile file;
-    private FileChannel fileChannel;
+    protected RandomAccessFile randomAccessFile;
+    protected FileChannel fileChannel;
     private MappedByteBuffer buffer;
     private HttpResponseStatus responseStatus;
+    private HttpHeaders headers;
     private long previousChunkTime;
     private volatile boolean aborted;
 
@@ -60,40 +64,49 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     @Override
-    public State onHeadersReceived(HttpHeaders headers) throws IOException {
-        // TODO handle case when headers are empty
-        this.fileChannel = onStartDownloading(this.responseStatus, headers);
-        if (this.fileChannel == null) {
-            this.aborted = true;
-            return State.ABORT;
+    public State onHeadersReceived(HttpHeaders headers) {
+        if (this.headers == null) {
+            this.headers = headers;
+        } else {
+            this.headers.add(headers);
         }
-
-        buffer = allocateBuffer(file.downloadedBytes);
         return State.CONTINUE;
     }
 
     @Override
     public State onBodyPartReceived(HttpResponseBodyPart bodyPart) {
         try {
+            if (fileChannel == null) {
+                HttpHeaders headers = this.headers == null ? EmptyHttpHeaders.INSTANCE : this.headers;
+                boolean success = onStartDownloading(this.responseStatus, headers);
+                if (!success) {
+                    this.aborted = true;
+                    return State.ABORT;
+                }
+
+                this.buffer = allocateBuffer(file.downloadedBytes);
+                return onBodyPartReceived(bodyPart); // ResumeFileDownloader may actually skip some bytes
+            }
+
             ByteBuffer chunk = bodyPart.getBodyByteBuffer();
             int size = chunk.remaining();
 
             long previouslyDownloadedBytes = file.downloadedBytes;
             long fileOffset = previouslyDownloadedBytes;
             while (chunk.hasRemaining()) {
-                int remaining = buffer.remaining();
+                int remaining = this.buffer.remaining();
                 if (remaining < chunk.remaining()) {
                     if (remaining > 0) {
                         int originalChunkLimit = chunk.limit();
                         chunk.limit(chunk.position() + remaining);
-                        buffer.put(chunk);
+                        this.buffer.put(chunk);
                         chunk.limit(originalChunkLimit);
                         fileOffset += remaining;
                     }
 
-                    buffer = allocateBuffer(fileOffset);
+                    this.buffer = allocateBuffer(fileOffset);
                 } else {
-                    buffer.put(chunk);
+                    this.buffer.put(chunk);
                 }
             }
 
@@ -135,27 +148,40 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
 
     @Override
     public void onThrowable(Throwable t) {
-        log.warn("Failed to download '{}'", filePath, t);
-        closeFile();
-        if (!aborted && !(t instanceof CancellationException)) {
-            onError();
+        try {
+            if (!(t instanceof CancellationException)) {
+                log.warn("Failed to download '{}'", filePath, t);
+                if (!aborted) {
+                    onError();
+                }
+            }
+        } finally {
+            closeFile();
         }
     }
 
     @Override
     public Object onCompleted() {
-        if (!aborted) {
-            log.info("File '{}' has been downloaded", filePath);
-            if (file != null) {
-                markFile(DownloadingFileStatus.DOWNLOADED);
+        try {
+            if (!aborted) {
+                log.info("File '{}' has been downloaded", filePath);
+                if (file != null) {
+                    markFile(DownloadingFileStatus.DOWNLOADED);
+                    try {
+                        randomAccessFile.setLength(file.commitedDownloadedBytes);
+                    } catch (Exception e) {
+                        log.warn("Failed to update file '{}' length", filePath);
+                    }
+                }
             }
+            return null;
+        } finally {
+            closeFile();
         }
-        closeFile();
-        return null;
     }
 
     protected abstract void onStartFailure();
-    protected abstract FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers);
+    protected abstract boolean onStartDownloading(HttpResponseStatus status, HttpHeaders headers);
     protected abstract void onError();
 
     private void closeFile() {
@@ -173,6 +199,7 @@ public abstract class BaseFileDownloader implements AsyncHandler<Object> {
     }
 
     protected void markFile(DownloadingFileStatus status) {
-        filesStorageDao.updateFile(file.commitBytes(status, file.downloadedBytes));
+        this.file = file.commitBytes(status, file.downloadedBytes);
+        filesStorageDao.updateFile(file);
     }
 }

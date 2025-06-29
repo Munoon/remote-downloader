@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import org.asynchttpclient.HttpResponseStatus;
 
 import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -57,16 +56,15 @@ public class NewFileDownloader extends BaseFileDownloader {
     }
 
     @Override
-    protected FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
+    protected boolean onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
         long contentLength = getContentLength(headers);
 
-        FileChannel fileChannel;
-        try  {
-            RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
+        try {
+            this.randomAccessFile = new RandomAccessFile(filePath.toFile(), "rw");
             if (contentLength > 0) {
-                raf.setLength(contentLength);
+                randomAccessFile.setLength(contentLength);
             }
-            fileChannel = raf.getChannel();
+            this.fileChannel = randomAccessFile.getChannel();
         } catch (Exception e) {
             log.warn("Failed to open file {}", filePath, e);
 
@@ -75,8 +73,7 @@ public class NewFileDownloader extends BaseFileDownloader {
                     Error.ErrorTypes.FAILED_TO_DOWNLOAD,
                     "Failed to start loading.");
             ctx.writeAndFlush(response);
-
-            return null;
+            return false;
         }
 
         long now = System.currentTimeMillis();
@@ -96,8 +93,7 @@ public class NewFileDownloader extends BaseFileDownloader {
 
         filesStorageDao.addFile(file);
         ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
-
-        return fileChannel;
+        return true;
     }
 
     @Override

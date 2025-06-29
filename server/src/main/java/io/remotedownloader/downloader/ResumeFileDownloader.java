@@ -17,7 +17,6 @@ import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 
 import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.PARTIAL_CONTENT;
@@ -59,21 +58,20 @@ public class ResumeFileDownloader extends BaseFileDownloader {
     }
 
     @Override
-    protected FileChannel onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
+    protected boolean onStartDownloading(HttpResponseStatus status, HttpHeaders headers) {
         long fileLength = getFileLength(status, headers);
 
-        FileChannel fileChannel;
         try  {
-            RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "rw");
+            this.randomAccessFile = new RandomAccessFile(filePath.toFile(), "rw");
             if (fileLength > 0) {
-                raf.setLength(fileLength);
+                this.randomAccessFile.setLength(fileLength);
             }
-            fileChannel = raf.getChannel();
-            fileChannel.position(file.commitedDownloadedBytes);
+            this.fileChannel = this.randomAccessFile.getChannel();
+            this.fileChannel.position(file.commitedDownloadedBytes);
         } catch (Exception e) {
             log.warn("Failed to open file {}", filePath, e);
             onStartFailure("Failed to start loading.");
-            return null;
+            return false;
         }
 
         this.skipBytesLeft = status.getStatusCode() == PARTIAL_CONTENT.code() ? 0 : file.commitedDownloadedBytes;
@@ -103,7 +101,7 @@ public class ResumeFileDownloader extends BaseFileDownloader {
             ctx.writeAndFlush(StringMessage.json(msg, new DownloadFileDTO(file)));
         }
 
-        return fileChannel;
+        return true;
     }
 
     @Override
@@ -114,7 +112,6 @@ public class ResumeFileDownloader extends BaseFileDownloader {
 
         ByteBuf byteBuf = bodyPart.getBodyByteBuf();
         int readableBytes = byteBuf.readableBytes();
-        System.out.println(readableBytes);
         if (skipBytesLeft >= readableBytes) {
             skipBytesLeft -= readableBytes;
             return State.CONTINUE;

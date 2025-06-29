@@ -92,6 +92,8 @@ public class DownloadFileTest extends BaseTest {
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
             ChannelHandlerContext ctx = fileServer.verifyRequest();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -99,10 +101,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "\0".repeat(5));
-
-            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
-            ctx.writeAndFlush(new DefaultHttpContent(content));
+            verifyFileContent("file.txt", "ab" + "\0".repeat(3));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -209,6 +208,8 @@ public class DownloadFileTest extends BaseTest {
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
 
             ChannelHandlerContext ctx = fileServer.verifyRequest();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -216,10 +217,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "\0".repeat(5));
-
-            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
-            ctx.writeAndFlush(new DefaultHttpContent(content));
+            verifyFileContent("file.txt", "ab" + "\0".repeat(3));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -306,6 +304,8 @@ public class DownloadFileTest extends BaseTest {
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
             ChannelHandlerContext ctx = fileServer.verifyRequest();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -313,10 +313,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "\0".repeat(5));
-
-            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
-            ctx.writeAndFlush(new DefaultHttpContent(content));
+            verifyFileContent("file.txt", "ab" + "\0".repeat(3));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -340,17 +337,18 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(2, file.downloadedBytes());
 
             fileServer.requestHandler(TestFileServer.RequestHandler.contentRangeResponding(4, "bytes=2-5/6"));
-            file = webClient.resumeDownloading(file.id()).parseDownloadFile(2);
-            assertEquals("file.txt", file.name());
-            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
-            assertEquals(6, file.totalBytes());
-            assertEquals(2, file.downloadedBytes());
-
+            webClient.resumeDownloading(file.id());
             ctx = fileServer.verifyRequest(r -> "bytes=2-".equals(r.headers().get("Range")));
 
             content = Unpooled.wrappedBuffer(new byte[]{'c', 'd', 'e', 'j'});
             ctx.writeAndFlush(new DefaultLastHttpContent(content))
                     .addListener(ChannelFutureListener.CLOSE);
+
+            file = webClient.parseDownloadFile(2);
+            assertEquals("file.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
+            assertEquals(6, file.totalBytes());
+            assertEquals(2, file.downloadedBytes());
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -381,6 +379,8 @@ public class DownloadFileTest extends BaseTest {
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
             ChannelHandlerContext ctx = fileServer.verifyRequest();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -388,10 +388,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "\0".repeat(5));
-
-            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
-            ctx.writeAndFlush(new DefaultHttpContent(content));
+            verifyFileContent("file.txt", "ab" + "\0".repeat(3));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -415,16 +412,18 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(2, file.downloadedBytes());
 
             fileServer.reset();
-            file = webClient.resumeDownloading(file.id()).parseDownloadFile(2);
-            assertEquals("file.txt", file.name());
-            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
-            assertEquals(5, file.totalBytes());
-            assertEquals(2, file.downloadedBytes());
+            webClient.resumeDownloading(file.id());
 
             ctx = fileServer.verifyRequest();
 
             content = Unpooled.wrappedBuffer(new byte[]{'a'});
             ctx.writeAndFlush(new DefaultHttpContent(content)).sync();
+
+            file = webClient.parseDownloadFile(2);
+            assertEquals("file.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
+            assertEquals(5, file.totalBytes());
+            assertEquals(2, file.downloadedBytes());
 
             content = Unpooled.wrappedBuffer(new byte[]{'b', 'c'});
             ctx.writeAndFlush(new DefaultHttpContent(content)).sync();
@@ -506,6 +505,8 @@ public class DownloadFileTest extends BaseTest {
 
             webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "file.txt", null);
             ChannelHandlerContext ctx = fileServer.verifyRequest();
+            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
+            ctx.writeAndFlush(new DefaultHttpContent(content));
 
             DownloadFileDTO file = webClient.parseDownloadFile(1);
             assertEquals("file.txt", file.name());
@@ -513,10 +514,7 @@ public class DownloadFileTest extends BaseTest {
             assertEquals(5, file.totalBytes());
             assertEquals(0, file.downloadedBytes());
 
-            verifyFileContent("file.txt", "\0".repeat(5));
-
-            ByteBuf content = Unpooled.wrappedBuffer(new byte[]{'a', 'b'});
-            ctx.writeAndFlush(new DefaultHttpContent(content));
+            verifyFileContent("file.txt", "ab" + "\0".repeat(3));
 
             assertWithReties(5, 200, () -> {
                 webClient.reset();
@@ -741,6 +739,55 @@ public class DownloadFileTest extends BaseTest {
                 reader.read(readChunk);
                 assertArrayEquals(assertChunk, readChunk);
             }
+        } finally {
+            fileServer.close();
+        }
+    }
+
+    @Test
+    void downloadFileWithEmptyHeaders() throws Exception {
+        TestFileServer fileServer = new TestFileServer((ctx, msg) -> {
+            byte[] fileContent = "This is example file content.".getBytes(StandardCharsets.UTF_8);
+            ctx.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK));
+            ctx.writeAndFlush(new DefaultLastHttpContent(Unpooled.wrappedBuffer(fileContent)))
+                    .addListener(ChannelFutureListener.CLOSE);
+        });
+
+        try {
+            WebClient webClient = loggedAdminWebClient();
+
+            webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "example file.txt", null);
+            DownloadFileDTO file = webClient.parseDownloadFile(1);
+            assertEquals("example file.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
+            assertEquals(-1, file.totalBytes());
+
+            fileServer.verifyRequest();
+            verifyFileContent("example file.txt", "This is example file content.");
+        } finally {
+            fileServer.close();
+        }
+    }
+
+    @Test
+    void downloadFileWithEmptyBody() throws Exception {
+        TestFileServer fileServer = new TestFileServer((ctx, msg) -> {
+            ctx.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK));
+            ctx.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER))
+                    .addListener(ChannelFutureListener.CLOSE);
+        });
+
+        try {
+            WebClient webClient = loggedAdminWebClient();
+
+            webClient.downloadFile("http://127.0.0.1:18081/example-file.txt", "example file.txt", null);
+            DownloadFileDTO file = webClient.parseDownloadFile(1);
+            assertEquals("example file.txt", file.name());
+            assertEquals(DownloadingFileStatus.DOWNLOADING, file.status());
+            assertEquals(-1, file.totalBytes());
+
+            fileServer.verifyRequest();
+            verifyFileContent("example file.txt", "");
         } finally {
             fileServer.close();
         }
