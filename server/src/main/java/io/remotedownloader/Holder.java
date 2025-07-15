@@ -18,8 +18,8 @@ public class Holder {
     public final UserDao userDao;
     public final SessionDao sessionDao;
 
-    public Holder() {
-        this(new ServerProperties());
+    public Holder(String[] args) {
+        this(new ServerProperties(args));
     }
 
     public Holder(ServerProperties serverProperties) {

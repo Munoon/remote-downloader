@@ -3,10 +3,77 @@ package io.remotedownloader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 public class ServerProperties extends Properties {
     private static final Logger log = LogManager.getLogger(ServerProperties.class);
+    private static final String CONFIG_FILE_ARG_PREFIX = "config.file=";
+
+    public ServerProperties() {
+        this(new String[0]);
+    }
+
+    public ServerProperties(String[] args) {
+        loadConfigFile(args);
+        loadArgs(args);
+    }
+
+    private void loadConfigFile(String[] args) {
+        Path configFile = resolveConfigFilePath(args);
+        if (configFile != null) {
+            try (InputStream inputStream = Files.newInputStream(configFile)) {
+                load(inputStream);
+            } catch (Exception e) {
+                log.error("Failed to load configuration file {}", configFile, e);
+            }
+        }
+    }
+
+    private void loadArgs(String[] args) {
+        for (String arg : args) {
+            int separator = arg.indexOf('=');
+            if (separator != -1) {
+                String key = arg.substring(0, separator);
+                String value = arg.substring(separator + 1);
+                put(key, value);
+            }
+        }
+    }
+
+    private static Path resolveConfigFilePath(String[] args) {
+        for (String arg : args) {
+            if (arg.startsWith("config.file=")) {
+                String configFilePath = arg.substring(CONFIG_FILE_ARG_PREFIX.length());
+                return fixConfigFilePath(configFilePath);
+            }
+        }
+
+        String configFile = System.getenv("CONFIG_FILE");
+        if (configFile != null) {
+            return fixConfigFilePath(configFile);
+        }
+
+        return fixConfigFilePath("server.properties");
+    }
+
+    private static Path fixConfigFilePath(String configFilePath) {
+        Path path = Path.of(configFilePath);
+        if (Files.exists(path)) {
+            if (Files.isRegularFile(path)) {
+                return path;
+            } else if (Files.isDirectory(path)) {
+                Path file = path.resolve("server.properties");
+                if (Files.isRegularFile(file)) {
+                    return file;
+                }
+            }
+        }
+        log.warn("Config file '{}' is not found!", configFilePath);
+        return null;
+    }
 
     public int getPort() {
         return getIntProperty("port", 8080);

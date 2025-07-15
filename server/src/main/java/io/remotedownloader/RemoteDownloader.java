@@ -13,7 +13,7 @@ public class RemoteDownloader {
     public static void main(String[] args) throws InterruptedException {
         log.info("Starting RemoteDownloader application...");
 
-        Holder holder = new Holder();
+        Holder holder = new Holder(args);
 
         HttpServer httpServer = new HttpServer(holder);
         httpServer.start();
