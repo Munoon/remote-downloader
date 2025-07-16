@@ -7,7 +7,7 @@ public record ListFoldersRequestDTO(
 ) implements Validatable {
     @Override
     public void validate() {
-        ValidationUtil.notEmpty(path, "Path");
+        ValidationUtil.notBlank(path, "Path");
         ValidationUtil.maxLength(path, 1_000, "Path");
         ValidationUtil.pathAllowedChars(path, "Path");
     }

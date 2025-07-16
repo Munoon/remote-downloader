@@ -37,6 +37,12 @@ public class ValidationUtil {
         }
     }
 
+    public static void notBlank(String value, String fieldName) {
+        if (value != null && value.isBlank()) {
+            throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " should not be blank.");
+        }
+    }
+
     public static void basicAllowedChars(String value, String fieldName) {
         if (value != null) {
             for (int i = 0; i < value.length(); i++) {

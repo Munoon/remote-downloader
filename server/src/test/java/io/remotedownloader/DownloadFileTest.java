@@ -179,11 +179,11 @@ public class DownloadFileTest extends BaseTest {
         webClient.downloadFile(null, null, null)
                 .verifyError(1, Error.ErrorTypes.VALIDATION, "URL can't be null.");
         webClient.downloadFile("", null, null)
-                .verifyError(2, Error.ErrorTypes.VALIDATION, "URL should not be empty.");
+                .verifyError(2, Error.ErrorTypes.VALIDATION, "URL should not be blank.");
         webClient.downloadFile("http://localhost:18081/abc", null, null)
                 .verifyError(3, Error.ErrorTypes.VALIDATION, "File name can't be null.");
         webClient.downloadFile("http://localhost:18081/abc", "", null)
-                .verifyError(4, Error.ErrorTypes.VALIDATION, "File name should not be empty.");
+                .verifyError(4, Error.ErrorTypes.VALIDATION, "File name should not be blank.");
         webClient.downloadFile("http://localhost:18081/abc", "a".repeat(1000), null)
                 .verifyError(5, Error.ErrorTypes.VALIDATION, "File name is too long.");
         webClient.downloadFile("http://localhost:18081/abc", "a/b", null)
@@ -195,7 +195,7 @@ public class DownloadFileTest extends BaseTest {
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "a".repeat(2000))
                 .verifyError(9, Error.ErrorTypes.VALIDATION, "Path is too long.");
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "")
-                .verifyError(10, Error.ErrorTypes.VALIDATION, "Path should not be empty.");
+                .verifyError(10, Error.ErrorTypes.VALIDATION, "Path should not be blank.");
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "../")
                 .verifyError(11, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "/")
@@ -617,7 +617,7 @@ public class DownloadFileTest extends BaseTest {
         WebClient webClient = loggedAdminWebClient();
 
         webClient.listFolders("")
-                .verifyError(1, Error.ErrorTypes.VALIDATION, "Path should not be empty.");
+                .verifyError(1, Error.ErrorTypes.VALIDATION, "Path should not be blank.");
         webClient.listFolders("a".repeat(2000))
                 .verifyError(2, Error.ErrorTypes.VALIDATION, "Path is too long.");
         webClient.listFolders("a\0b")

@@ -154,7 +154,7 @@ public class DownloadManagerDao {
                 Path baseDownloadFolder = resolveDownloadFolder();
 
                 Path downloadFolder = baseDownloadFolder;
-                if (path != null && !path.isBlank()) {
+                if (path != null) {
                     downloadFolder = downloadFolder.resolve(path).normalize();
                     if (!downloadFolder.startsWith(baseDownloadFolder)) {
                         throw new ErrorException(Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
@@ -180,7 +180,7 @@ public class DownloadManagerDao {
         Path baseDownloadFolder = resolveDownloadFolder();
 
         Path downloadFolder = baseDownloadFolder;
-        if (path != null && !path.isBlank()) {
+        if (path != null) {
             downloadFolder = downloadFolder.resolve(path).normalize();
             if (!downloadFolder.startsWith(baseDownloadFolder)) {
                 throw new ErrorException(Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
