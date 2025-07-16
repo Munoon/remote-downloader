@@ -196,6 +196,10 @@ public class DownloadFileTest extends BaseTest {
                 .verifyError(9, Error.ErrorTypes.VALIDATION, "Path is too long.");
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "")
                 .verifyError(10, Error.ErrorTypes.VALIDATION, "Path should not be empty.");
+        webClient.downloadFile("http://localhost:18081/abc", "file.txt", "../")
+                .verifyError(11, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+        webClient.downloadFile("http://localhost:18081/abc", "file.txt", "/")
+                .verifyError(12, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
     }
 
     @Test
@@ -614,6 +618,14 @@ public class DownloadFileTest extends BaseTest {
                 .verifyError(2, Error.ErrorTypes.VALIDATION, "Path is too long.");
         webClient.listFolders("a\0b")
                 .verifyError(3, Error.ErrorTypes.VALIDATION, "Path contain unallowed char.");
+        webClient.listFolders("../b")
+                .verifyError(4, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+        webClient.listFolders("a/../../b")
+                .verifyError(5, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+        webClient.listFolders("/a")
+                .verifyError(6, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+        webClient.listFolders("//a")
+                .verifyError(7, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
     }
 
     @Test

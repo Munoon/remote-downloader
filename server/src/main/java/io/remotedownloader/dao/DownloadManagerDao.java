@@ -151,9 +151,14 @@ public class DownloadManagerDao {
     public CompletableFuture<List<ListFileDTO>> listFolders(String path) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Path downloadFolder = resolveDownloadFolder();
-                if (path != null) {
-                    downloadFolder = downloadFolder.resolve(path);
+                Path baseDownloadFolder = resolveDownloadFolder();
+
+                Path downloadFolder = baseDownloadFolder;
+                if (path != null && !path.isBlank()) {
+                    downloadFolder = downloadFolder.resolve(path).normalize();
+                    if (!downloadFolder.startsWith(baseDownloadFolder)) {
+                        throw new ErrorException(Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+                    }
                 }
 
                 try (Stream<Path> files = Files.list(downloadFolder)) {
@@ -163,6 +168,8 @@ public class DownloadManagerDao {
                             .sorted((f1, f2) -> Boolean.compare(f2.folder(), f1.folder()))
                             .toList();
                 }
+            } catch (ErrorException e) {
+                throw e;
             } catch (Exception e) {
                 throw new ErrorException(Error.ErrorTypes.UNKNOWN, "Failed to list folders on server.", e);
             }
@@ -170,9 +177,14 @@ public class DownloadManagerDao {
     }
 
     private Path resolveFilePath(String path, String fileName, boolean createFolders) {
-        Path downloadFolder = resolveDownloadFolder();
-        if (path != null) {
-            downloadFolder = downloadFolder.resolve(path);
+        Path baseDownloadFolder = resolveDownloadFolder();
+
+        Path downloadFolder = baseDownloadFolder;
+        if (path != null && !path.isBlank()) {
+            downloadFolder = downloadFolder.resolve(path).normalize();
+            if (!downloadFolder.startsWith(baseDownloadFolder)) {
+                throw new ErrorException(Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+            }
 
             if (createFolders) {
                 if (Files.exists(downloadFolder)) {

@@ -52,7 +52,7 @@ public class ValidationUtil {
         if (value != null) {
             for (int i = 0; i < value.length(); i++) {
                 char c = value.charAt(i);
-                if (c == '/' || c == '\0') {
+                if (c == '/' || c == '\0' || c == '\\') {
                     throw new ErrorException(Error.ErrorTypes.VALIDATION, fieldName + " contain unallowed char.");
                 }
             }
