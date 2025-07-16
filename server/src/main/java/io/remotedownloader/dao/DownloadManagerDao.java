@@ -3,6 +3,7 @@ package io.remotedownloader.dao;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.epoll.Epoll;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.ssl.OpenSsl;
 import io.remotedownloader.ServerProperties;
 import io.remotedownloader.downloader.BaseFileDownloader;
@@ -17,12 +18,8 @@ import io.remotedownloader.protocol.ErrorException;
 import io.remotedownloader.protocol.StringMessage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.BoundRequestBuilder;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.*;
+import org.asynchttpclient.uri.Uri;
 
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -81,7 +78,8 @@ public class DownloadManagerDao {
     public CompletableFuture<Void> download(ChannelHandlerContext ctx,
                                             StringMessage msg,
                                             DownloadUrlRequestDTO req,
-                                            String username) {
+                                            String username,
+                                            Uri uri) {
         return CompletableFuture.runAsync(() -> {
             Path filePath = resolveFilePath(req.path(), req.fileName(), true);
             try {
@@ -96,7 +94,7 @@ public class DownloadManagerDao {
 
             NewFileDownloader handler = new NewFileDownloader(
                     ctx, msg, fileId, username, req, filePath, filesStorageDao, properties);
-            startDownloading(req.url(), fileId, handler, 0);
+            startDownloading(uri, fileId, handler, 0);
         }, threadPoolsHolder.blockingTasksExecutor);
     }
 
@@ -111,12 +109,14 @@ public class DownloadManagerDao {
 
             ResumeFileDownloader handler = new ResumeFileDownloader(
                     ctx, msg, file, filePath, filesStorageDao, properties);
-            startDownloading(file.url, file.id, handler, downloadedBytes);
+            startDownloading(Uri.create(file.url), file.id, handler, downloadedBytes);
         }, threadPoolsHolder.blockingTasksExecutor);
     }
 
-    private void startDownloading(String url, String fileId, BaseFileDownloader handler, long rangeOffset) {
-        BoundRequestBuilder requestBuilder = asyncHttpClient.prepareGet(url)
+    private void startDownloading(Uri uri, String fileId, BaseFileDownloader handler, long rangeOffset) {
+        RequestBuilder requestBuilder = new RequestBuilder()
+                .setMethod(HttpMethod.GET.name())
+                .setUri(uri)
                 .setFollowRedirect(properties.getFollowRedirect())
                 .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()));
 
@@ -124,7 +124,7 @@ public class DownloadManagerDao {
             requestBuilder.addHeader(HttpHeaderNames.RANGE, "bytes=" + rangeOffset + '-');
         }
 
-        ListenableFuture<Object> future = requestBuilder.execute(handler);
+        ListenableFuture<Object> future = asyncHttpClient.executeRequest(requestBuilder.build(), handler);
         downloadingFiles.put(fileId, future);
 
         future.addListener(() -> downloadingFiles.remove(fileId), null);

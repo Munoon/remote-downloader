@@ -200,6 +200,10 @@ public class DownloadFileTest extends BaseTest {
                 .verifyError(11, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
         webClient.downloadFile("http://localhost:18081/abc", "file.txt", "/")
                 .verifyError(12, Error.ErrorTypes.VALIDATION, "Access to this folder is denied!");
+        webClient.downloadFile("wss://localhost:18081/abc", "file.txt", null)
+                .verifyError(13, Error.ErrorTypes.VALIDATION, "Unsupported URL schema.");
+        webClient.downloadFile("hahahahah", "file.txt", null)
+                .verifyError(14, Error.ErrorTypes.VALIDATION, "Failed to parse URL.");
     }
 
     @Test
